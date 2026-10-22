@@ -14,8 +14,8 @@ const modules: Module[] = [
   { label: 'Rapports', description: 'Chiffre d’affaires et analytics', icon: BarChart3, action: 'rapports' },
   { label: 'Équipe', description: 'Gérer les accès et les rôles', icon: Users },
   { label: 'Stock', description: 'Gestion avancée des stocks', icon: Package, badge: `${stock.alerts} alertes`, action: 'stock' },
-  { label: 'Paramètres restaurant', description: 'Horaires, infos, modes de paiement', icon: Store },
-  { label: 'QR Code', description: 'Gérer les QR codes de table', icon: QrCode },
+  { label: 'Paramètres restaurant', description: 'Nom du restaurant, adresse du site, QR codes', icon: Store, action: 'parametres' },
+  { label: 'QR Code', description: 'Gérer les QR codes de table', icon: QrCode, action: 'qr' },
   { label: 'Abonnement', description: 'Votre formule et facturation', icon: CreditCard },
   { label: 'Aide', description: 'Centre d’aide et tutoriels', icon: CircleHelp },
 ]

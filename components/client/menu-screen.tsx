@@ -1,10 +1,11 @@
 import { Plus, ShoppingBag } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { categories, restaurant, type Category, type ClientDish } from '@/lib/client-data'
+import { categories, type Category, type ClientDish } from '@/lib/client-data'
 import { fcfa } from '@/lib/gerant-data'
 import { DishImage, QtyStepper, Rating, roundButton } from './ui'
 
 export function MenuScreen({
+  restaurantName,
   dishes: allDishes,
   table,
   category,
@@ -15,6 +16,7 @@ export function MenuScreen({
   onSetQty,
   onCart,
 }: {
+  restaurantName: string
   dishes: ClientDish[]
   table: string
   category: Category | 'tous'
@@ -32,7 +34,7 @@ export function MenuScreen({
       <header className="sticky top-0 z-10 bg-background/95 px-4 pb-0 pt-5 backdrop-blur lg:top-16 lg:px-0 lg:pt-8">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="font-serif text-2xl font-semibold leading-tight lg:text-4xl">{restaurant.name}</h1>
+            <h1 className="font-serif text-2xl font-semibold leading-tight lg:text-4xl">{restaurantName}</h1>
             <p className="text-sm text-muted-foreground lg:hidden">Table {table}</p>
             <p className="hidden text-muted-foreground lg:block">Choisissez vos plats, nous les préparons pour votre table.</p>
           </div>

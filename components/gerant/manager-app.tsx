@@ -20,6 +20,7 @@ import { TablesScreen } from './tables-screen'
 import { MenuScreen } from './menu-screen'
 import { ReportsScreen } from './reports-screen'
 import { MoreScreen } from './more-screen'
+import { SettingsScreen } from './settings-screen'
 
 const nextTableStatus: Record<TableStatus, TableStatus> = { libre: 'occupee', occupee: 'reservee', reservee: 'libre' }
 
@@ -51,7 +52,7 @@ export function ManagerApp() {
 
   return (
     <div className="min-h-dvh bg-background lg:flex">
-      <Sidebar current={view} onNavigate={navigate} badges={badges} />
+      <Sidebar current={view === 'parametres' || view === 'qr' ? 'plus' : view} onNavigate={navigate} badges={badges} />
       <main className="flex-1 pb-28 lg:pb-12">
         <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">
           {view === 'accueil' && <DashboardScreen orders={orders} tables={tables} onNavigate={navigate} />}
@@ -60,9 +61,10 @@ export function ManagerApp() {
           {view === 'menu' && <MenuScreen dishes={dishes} onToggle={menuActions.toggle} onSave={menuActions.save} onRemove={menuActions.remove} newId={menuActions.newId} />}
           {view === 'rapports' && <ReportsScreen />}
           {view === 'plus' && <MoreScreen onNavigate={navigate} />}
+          {(view === 'parametres' || view === 'qr') && <SettingsScreen key={view} tables={tables} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
         </div>
       </main>
-      <BottomNav current={view} onNavigate={navigate} badges={badges} />
+      <BottomNav current={view === 'parametres' || view === 'qr' ? 'plus' : view} onNavigate={navigate} badges={badges} />
     </div>
   )
 }

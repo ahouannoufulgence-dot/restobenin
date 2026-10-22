@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { SERVICE_FEE, restaurant, type Category, type PlacedOrder } from '@/lib/client-data'
+import { SERVICE_FEE, type Category, type PlacedOrder } from '@/lib/client-data'
 import { useClientDishes } from '@/lib/menu-store'
+import { useSettings } from '@/lib/settings-store'
 import { BottomNav, TopNav, type ClientTab } from './bottom-nav'
 import { CartPanel, CartScreen } from './cart-screen'
 import { ConfirmedScreen } from './confirmed-screen'
@@ -23,6 +24,7 @@ export function ClientApp({ table }: { table: string }) {
   const [category, setCategory] = useState<Category | 'tous'>('tous')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const dishes = useClientDishes()
+  const { restaurantName } = useSettings()
   const [rawCart, setCart] = useState<Record<string, number>>({})
   const [order, setOrder] = useState<PlacedOrder | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -76,7 +78,7 @@ export function ClientApp({ table }: { table: string }) {
 
   const cartCount = Object.values(cart).reduce((sum, q) => sum + q, 0)
 
-  if (view === 'accueil') return <WelcomeScreen table={table} onStart={() => go('menu')} />
+  if (view === 'accueil') return <WelcomeScreen restaurantName={restaurantName} table={table} onStart={() => go('menu')} />
 
   if (view === 'confirmee' && order) {
     return (
@@ -98,6 +100,7 @@ export function ClientApp({ table }: { table: string }) {
 
   const menu = (
     <MenuScreen
+      restaurantName={restaurantName}
       dishes={dishes}
       table={table}
       category={category}
@@ -115,7 +118,7 @@ export function ClientApp({ table }: { table: string }) {
 
   return (
     <div className="min-h-dvh bg-background">
-      <TopNav current={tab} onNavigate={navigate} cartCount={cartCount} hasOrder={orderActive} restaurant={restaurant.name} table={table} />
+      <TopNav current={tab} onNavigate={navigate} cartCount={cartCount} hasOrder={orderActive} restaurant={restaurantName} table={table} />
       <div className={dish ? 'lg:px-8' : 'pb-24 lg:pb-12'}>
         {view === 'menu' && (
           <div className="mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10 lg:px-8">

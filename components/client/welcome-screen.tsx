@@ -1,8 +1,7 @@
 import Image from 'next/image'
 import { ChevronRight, Flame } from 'lucide-react'
-import { restaurant } from '@/lib/client-data'
 
-export function WelcomeScreen({ table, onStart }: { table: string; onStart: () => void }) {
+export function WelcomeScreen({ restaurantName, table, onStart }: { restaurantName: string; table: string; onStart: () => void }) {
   return (
     <main className="flex min-h-dvh flex-col bg-[radial-gradient(ellipse_at_top,#9a3d16_0%,#6b2610_45%,#3a1407_100%)] px-6 pb-10 pt-14 text-cream lg:justify-center lg:py-16">
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-between text-center lg:grid lg:flex-none lg:grid-cols-2 lg:gap-x-16 lg:text-left">
@@ -13,7 +12,7 @@ export function WelcomeScreen({ table, onStart }: { table: string; onStart: () =
               Resto<span className="text-ember">Ben</span>
             </span>
           </div>
-          <h1 className="mt-10 font-serif text-4xl font-semibold leading-tight text-balance lg:text-6xl">Bienvenue au {restaurant.name}</h1>
+          <h1 className="mt-10 font-serif text-4xl font-semibold leading-tight text-balance lg:text-6xl">Bienvenue au {restaurantName}</h1>
           <p className="mt-2 text-lg text-cream/80">Table {table}</p>
         </div>
 
