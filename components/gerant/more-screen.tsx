@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import Link from 'next/link'
-import { BarChart3, ChevronRight, CircleHelp, CreditCard, LogOut, Package, QrCode, Settings, Store, Users } from 'lucide-react'
+import { BarChart3, ChevronRight, CircleHelp, CreditCard, LayoutGrid, LogOut, Package, QrCode, Settings, Store, UtensilsCrossed, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fcfa, stock, type ManagerView } from '@/lib/gerant-data'
@@ -11,10 +11,12 @@ import { Panel, ScreenHeader } from './shared'
 type Module = { label: string; description: string; icon: LucideIcon; badge?: string; action?: 'stock' | ManagerView }
 
 const modules: Module[] = [
-  { label: 'Rapports', description: 'Chiffre d’affaires et analytics', icon: BarChart3, action: 'rapports' },
+  { label: 'Rapports', description: 'Ventes par jour, semaine, mois, année + export PDF', icon: BarChart3, action: 'rapports' },
+  { label: 'Tables', description: 'Plan de salle et occupation', icon: LayoutGrid, action: 'tables' },
+  { label: 'Menu', description: 'Plats, prix et photos', icon: UtensilsCrossed, action: 'menu' },
   { label: 'Équipe', description: 'Gérer les accès et les rôles', icon: Users },
   { label: 'Stock', description: 'Gestion avancée des stocks', icon: Package, badge: `${stock.alerts} alertes`, action: 'stock' },
-  { label: 'Paramètres restaurant', description: 'Nom du restaurant, adresse du site, QR codes', icon: Store, action: 'parametres' },
+  { label: 'Paramètres restaurant', description: 'Restaurant, reçus, adresse du site, QR codes', icon: Store, action: 'parametres' },
   { label: 'QR Code', description: 'Gérer les QR codes de table', icon: QrCode, action: 'qr' },
   { label: 'Abonnement', description: 'Votre formule et facturation', icon: CreditCard },
   { label: 'Aide', description: 'Centre d’aide et tutoriels', icon: CircleHelp },

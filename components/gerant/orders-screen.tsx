@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { fcfa, type Order, type OrderStatus } from '@/lib/gerant-data'
+import { fcfa, type OrderStatus } from '@/lib/gerant-data'
+import { tableLabel, type StoreOrder } from '@/lib/orders-store'
 import { Panel, ScreenHeader, StatusBadge, iconButton } from './shared'
 
 type Tab = 'en_cours' | 'terminees' | 'annulees'
@@ -20,15 +21,18 @@ const nextStep: Partial<Record<OrderStatus, { label: string; to: OrderStatus }>>
   pret: { label: 'Marquer servie', to: 'terminee' },
 }
 
-export function OrdersScreen({ orders, onUpdate }: { orders: Order[]; onUpdate: (id: string, status: OrderStatus) => void }) {
+const clock = (ms: number) => new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+
+export function OrdersScreen({ orders, onUpdate }: { orders: StoreOrder[]; onUpdate: (id: string, status: OrderStatus) => void }) {
   const [tab, setTab] = useState<Tab>('en_cours')
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
 
   const current = tabs.find((t) => t.id === tab)!
-  const visible = orders.filter(
-    (o) => current.statuses.includes(o.status) && o.table.toLowerCase().includes(query.trim().toLowerCase()),
-  )
+  const q = query.trim().toLowerCase()
+  const visible = orders
+    .filter((o) => current.statuses.includes(o.status) && (tableLabel(o.table).toLowerCase().includes(q) || o.number.includes(q)))
+    .sort((a, b) => b.createdAt - a.createdAt)
 
   return (
     <>
@@ -61,7 +65,7 @@ export function OrdersScreen({ orders, onUpdate }: { orders: Order[]; onUpdate: 
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher une table (ex. Table 12)"
+            placeholder="Rechercher une table ou un n° (ex. Table 12)"
             className="h-11 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none placeholder:text-muted-foreground focus:border-ember focus:ring-3 focus:ring-ember/20"
           />
         </div>
@@ -95,31 +99,52 @@ export function OrdersScreen({ orders, onUpdate }: { orders: Order[]; onUpdate: 
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map((order) => {
-            const step = nextStep[order.status]
+            const step = nextStep[order.status as OrderStatus]
             return (
               <li key={order.id}>
                 <Panel className="flex h-full flex-col gap-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-semibold text-foreground">{order.table}</p>
-                      <p className="text-sm tabular-nums text-muted-foreground">{order.time}</p>
+                      <p className="font-semibold text-foreground">{tableLabel(order.table)}</p>
+                      <p className="text-sm tabular-nums text-muted-foreground">
+                        #{order.number} · {clock(order.createdAt)}
+                      </p>
                     </div>
-                    <p className="font-semibold tabular-nums">{fcfa(order.amount)}</p>
+                    <p className="font-semibold tabular-nums">{fcfa(order.total)}</p>
                   </div>
+                  <p className="text-sm text-muted-foreground">{order.lines.map((l) => `${l.qty} × ${l.name}`).join(', ')}</p>
                   <div className="flex items-center justify-between">
-                    <StatusBadge status={order.status} />
+                    <span className="flex items-center gap-2">
+                      <StatusBadge status={order.status} />
+                      {order.payment ? (
+                        <span className="rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success">Payée</span>
+                      ) : (
+                        order.status === 'terminee' && <span className="rounded-full bg-gold/20 px-2.5 py-0.5 text-xs font-semibold text-[#8a5a12]">À encaisser</span>
+                      )}
+                    </span>
                     <span className="text-xs text-muted-foreground">
-                      {order.items} {order.items > 1 ? 'plats' : 'plat'}
+                      {order.lines.reduce((n, l) => n + l.qty, 0)} article(s)
                     </span>
                   </div>
                   {step && (
-                    <button
-                      type="button"
-                      onClick={() => onUpdate(order.id, step.to)}
-                      className="mt-auto inline-flex h-10 items-center justify-center rounded-lg border border-ember/40 text-sm font-semibold text-ember transition-colors hover:bg-ember hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
-                    >
-                      {step.label}
-                    </button>
+                    <div className="mt-auto flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onUpdate(order.id, step.to)}
+                        className="inline-flex h-10 flex-1 items-center justify-center rounded-lg border border-ember/40 text-sm font-semibold text-ember transition-colors hover:bg-ember hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+                      >
+                        {step.label}
+                      </button>
+                      {order.status === 'en_attente' && (
+                        <button
+                          type="button"
+                          onClick={() => onUpdate(order.id, 'annulee')}
+                          className="inline-flex h-10 items-center justify-center rounded-lg px-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-destructive/30"
+                        >
+                          Annuler
+                        </button>
+                      )}
+                    </div>
                   )}
                 </Panel>
               </li>

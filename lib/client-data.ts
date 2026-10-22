@@ -140,6 +140,7 @@ export type PlacedOrder = {
   total: number
   stage: number // 0 reçue, 1 en préparation, 2 prête, 3 servie
   times: number[] // horodatage de chaque étape atteinte
+  cancelled?: boolean
 }
 
 export const stages = [

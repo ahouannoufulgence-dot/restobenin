@@ -36,7 +36,7 @@ export function TablesScreen({
 
   return (
     <>
-      <ScreenHeader title="Tables" subtitle="Touchez une table pour changer son statut." />
+      <ScreenHeader title="Tables" subtitle="Une table passe en « Occupée » dès qu’une commande est ouverte, et se libère après l’encaissement." />
 
       <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Filtrer les tables">
         {filters.map((f) => (

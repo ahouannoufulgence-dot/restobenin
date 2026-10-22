@@ -9,10 +9,16 @@ export type Settings = {
   restaurantName: string
   /** Adresse publique du site, utilisée dans les QR codes. Vide = adresse actuelle du navigateur. */
   siteUrl: string
+  /** Informations imprimées en haut du reçu. */
+  address: string
+  phone: string
+  receiptFooter: string
+  /** Inclure l'historique fictif de démonstration dans les rapports. */
+  demoData: boolean
 }
 
 const KEY = 'restoben:settings:v1'
-const DEFAULTS: Settings = { restaurantName: restaurant.name, siteUrl: '' }
+const DEFAULTS: Settings = { restaurantName: restaurant.name, siteUrl: '', address: '', phone: '', receiptFooter: 'Merci de votre visite !', demoData: true }
 
 let cache: Settings | null = null
 const listeners = new Set<() => void>()
@@ -25,6 +31,10 @@ function read(): Settings {
     return {
       restaurantName: typeof p.restaurantName === 'string' && p.restaurantName.trim() ? p.restaurantName : DEFAULTS.restaurantName,
       siteUrl: typeof p.siteUrl === 'string' ? p.siteUrl : '',
+      address: typeof p.address === 'string' ? p.address : '',
+      phone: typeof p.phone === 'string' ? p.phone : '',
+      receiptFooter: typeof p.receiptFooter === 'string' ? p.receiptFooter : DEFAULTS.receiptFooter,
+      demoData: typeof p.demoData === 'boolean' ? p.demoData : true,
     }
   } catch {
     return DEFAULTS

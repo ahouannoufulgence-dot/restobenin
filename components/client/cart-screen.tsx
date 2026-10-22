@@ -4,6 +4,7 @@ import { fcfa } from '@/lib/gerant-data'
 import { DishImage, QtyStepper, emberAction, roundButton } from './ui'
 
 type CartProps = {
+  error?: string
   dishes: ClientDish[]
   cart: Record<string, number>
   onSetQty: (id: string, qty: number) => void
@@ -11,7 +12,7 @@ type CartProps = {
   onBrowse: () => void
 }
 
-export function CartSummary({ dishes, cart, onSetQty, onOrder, onBrowse }: CartProps) {
+export function CartSummary({ error, dishes, cart, onSetQty, onOrder, onBrowse }: CartProps) {
   const lines = Object.entries(cart).flatMap(([id, qty]) => {
     const dish = dishes.find((d) => d.id === id)
     return dish ? [{ dish, qty }] : []
@@ -73,6 +74,11 @@ export function CartSummary({ dishes, cart, onSetQty, onOrder, onBrowse }: CartP
         </div>
       </dl>
 
+      {error && (
+        <p role="alert" className="mt-4 text-sm font-medium text-destructive">
+          {error}
+        </p>
+      )}
       <button type="button" onClick={onOrder} className={`${emberAction} mt-6`}>
         Commander
         <ChevronRight className="size-4" aria-hidden="true" />

@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { SERVICE_FEE, type Category, type PlacedOrder } from '@/lib/client-data'
+import type { Category, PlacedOrder } from '@/lib/client-data'
 import { useClientDishes } from '@/lib/menu-store'
+import { ordersActions, stageOf, useOrders } from '@/lib/orders-store'
 import { useSettings } from '@/lib/settings-store'
 import { BottomNav, TopNav, type ClientTab } from './bottom-nav'
 import { CartPanel, CartScreen } from './cart-screen'
@@ -15,9 +16,7 @@ import { WelcomeScreen } from './welcome-screen'
 
 type View = 'accueil' | 'menu' | 'plat' | 'panier' | 'confirmee' | 'suivi'
 
-// Démo : la commande avance toute seule d'une étape toutes les 8 secondes.
-// Quand le backend sera branché, cette progression viendra de l'espace gérant.
-const STAGE_DELAY_MS = 8000
+const ORDER_KEY = 'restoben:client-order'
 
 export function ClientApp({ table }: { table: string }) {
   const [view, setView] = useState<View>('accueil')
@@ -26,22 +25,38 @@ export function ClientApp({ table }: { table: string }) {
   const dishes = useClientDishes()
   const { restaurantName } = useSettings()
   const [rawCart, setCart] = useState<Record<string, number>>({})
-  const [order, setOrder] = useState<PlacedOrder | null>(null)
+  const [orderId, setOrderId] = useState<string | null>(null)
+  const [orderError, setOrderError] = useState('')
+  const orders = useOrders()
   const [reviewOpen, setReviewOpen] = useState(false)
 
   // Si le gérant retire un plat ou le rend indisponible, il disparaît aussi du panier.
   const cart = useMemo(() => Object.fromEntries(Object.entries(rawCart).filter(([id]) => dishes.some((d) => d.id === id && d.available))), [rawCart, dishes])
 
-  const orderStage = order?.stage ?? 0
-  const orderActive = order !== null && orderStage < 3
+  // Le suivi vient des vrais statuts de la commande, mis à jour par la cuisine et la caisse.
+  const stored = orderId ? orders.find((o) => o.id === orderId) : undefined
+  const order: PlacedOrder | null = stored
+    ? {
+        number: stored.number,
+        lines: stored.lines,
+        subtotal: stored.subtotal,
+        total: stored.total,
+        stage: stageOf[stored.status],
+        times: [stored.createdAt, stored.times.en_cours, stored.times.pret, stored.times.terminee].filter((t): t is number => typeof t === 'number'),
+        cancelled: stored.status === 'annulee',
+      }
+    : null
+  const orderActive = !!stored && stored.status !== 'terminee' && stored.status !== 'annulee'
 
+  // Retrouve la commande en cours si le client recharge la page.
   useEffect(() => {
-    if (!orderActive) return
-    const timer = window.setTimeout(() => {
-      setOrder((o) => (o && o.stage < 3 ? { ...o, stage: o.stage + 1, times: [...o.times, Date.now()] } : o))
-    }, STAGE_DELAY_MS)
-    return () => window.clearTimeout(timer)
-  }, [orderActive, orderStage])
+    try {
+      const saved = window.sessionStorage.getItem(`${ORDER_KEY}:${table}`)
+      if (saved) setOrderId(saved)
+    } catch {
+      /* stockage indisponible */
+    }
+  }, [table])
 
   function go(next: View) {
     setView(next)
@@ -63,15 +78,18 @@ export function ClientApp({ table }: { table: string }) {
       return dish ? [{ id, name: dish.name, qty, price: dish.price }] : []
     })
     if (lines.length === 0) return
-    const subtotal = lines.reduce((sum, l) => sum + l.price * l.qty, 0)
-    setOrder({
-      number: String(Math.floor(Math.random() * 900) + 100).padStart(4, '0'),
-      lines,
-      subtotal,
-      total: subtotal + SERVICE_FEE,
-      stage: 0,
-      times: [Date.now()],
-    })
+    const created = ordersActions.create({ table, lines, source: 'client' })
+    if (!created) {
+      setOrderError('Impossible d’envoyer la commande. Appelez un serveur.')
+      return
+    }
+    setOrderError('')
+    setOrderId(created.id)
+    try {
+      window.sessionStorage.setItem(`${ORDER_KEY}:${table}`, created.id)
+    } catch {
+      /* stockage indisponible */
+    }
     setCart({})
     go('confirmee')
   }
@@ -124,7 +142,7 @@ export function ClientApp({ table }: { table: string }) {
           <div className="mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10 lg:px-8">
             {menu}
             <aside className="hidden lg:sticky lg:top-24 lg:mt-8 lg:block lg:self-start">
-              <CartPanel dishes={dishes} cart={cart} onSetQty={setQty} onOrder={placeOrder} onBrowse={() => go('menu')} />
+              <CartPanel error={orderError} dishes={dishes} cart={cart} onSetQty={setQty} onOrder={placeOrder} onBrowse={() => go('menu')} />
             </aside>
           </div>
         )}
@@ -140,7 +158,7 @@ export function ClientApp({ table }: { table: string }) {
             }}
           />
         )}
-        {view === 'panier' && <CartScreen dishes={dishes} cart={cart} onSetQty={setQty} onBack={() => go('menu')} onOrder={placeOrder} />}
+        {view === 'panier' && <CartScreen error={orderError} dishes={dishes} cart={cart} onSetQty={setQty} onBack={() => go('menu')} onOrder={placeOrder} />}
         {view === 'suivi' && <TrackingScreen order={order} onMenu={() => go('menu')} onReview={() => setReviewOpen(true)} onBack={() => go('menu')} />}
       </div>
       {!dish && <BottomNav current={tab} onNavigate={navigate} cartCount={cartCount} hasOrder={orderActive} />}

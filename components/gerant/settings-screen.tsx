@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import type { RestaurantTable } from '@/lib/gerant-data'
 import { makeQr, printPosters } from '@/lib/qr-print'
 import { normalizeSiteUrl, saveSettings, tableNumber, tableUrl, useSettings } from '@/lib/settings-store'
+import { ordersActions } from '@/lib/orders-store'
 import { Panel, ScreenHeader, iconButton, primaryAction } from './shared'
 
 const fieldClass =
@@ -18,6 +19,9 @@ export function SettingsScreen({ tables, focusQr, onBack }: { tables: Restaurant
   const settings = useSettings()
   const [name, setName] = useState(settings.restaurantName)
   const [site, setSite] = useState(settings.siteUrl)
+  const [address, setAddress] = useState(settings.address)
+  const [phone, setPhone] = useState(settings.phone)
+  const [footer, setFooter] = useState(settings.receiptFooter)
   const [message, setMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null)
   const [origin, setOrigin] = useState('')
   const [qrs, setQrs] = useState<Record<string, string>>({})
@@ -56,7 +60,7 @@ export function SettingsScreen({ tables, focusQr, onBack }: { tables: Restaurant
     if (!name.trim()) return setMessage({ type: 'error', text: 'Indiquez le nom du restaurant.' })
     const normalized = normalizeSiteUrl(site)
     if (site.trim() && !normalized) return setMessage({ type: 'error', text: 'Cette adresse n’est pas valide. Exemple : https://monrestaurant.com' })
-    const ok = saveSettings({ restaurantName: name.trim(), siteUrl: normalized })
+    const ok = saveSettings({ ...settings, restaurantName: name.trim(), siteUrl: normalized, address: address.trim(), phone: phone.trim(), receiptFooter: footer.trim() })
     if (!ok) return setMessage({ type: 'error', text: 'Enregistrement impossible : la mémoire du navigateur est pleine.' })
     setSite(normalized)
     setMessage({ type: 'ok', text: 'Paramètres enregistrés.' })
@@ -124,6 +128,24 @@ export function SettingsScreen({ tables, focusQr, onBack }: { tables: Restaurant
               </label>
               <input id="resto-site" value={site} onChange={(e) => setSite(e.target.value)} placeholder={origin || 'https://monrestaurant.com'} inputMode="url" autoCapitalize="none" className={fieldClass} />
               <p className="mt-1 text-xs text-muted-foreground">Celle que les clients ouvrent en scannant. Laissez vide pour utiliser l’adresse actuelle.</p>
+            </div>
+            <div>
+              <label htmlFor="resto-address" className="mb-1 block text-sm font-medium">
+                Adresse (reçus)
+              </label>
+              <input id="resto-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Ex. Rue des Cocotiers, Cotonou" className={fieldClass} />
+            </div>
+            <div>
+              <label htmlFor="resto-phone" className="mb-1 block text-sm font-medium">
+                Téléphone (reçus)
+              </label>
+              <input id="resto-phone" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Ex. +229 01 00 00 00 00" className={fieldClass} />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="resto-footer" className="mb-1 block text-sm font-medium">
+                Message en bas du reçu
+              </label>
+              <input id="resto-footer" value={footer} onChange={(e) => setFooter(e.target.value)} placeholder="Merci de votre visite !" className={fieldClass} />
             </div>
             <div className="flex flex-wrap items-center gap-3 md:col-span-2">
               <button type="submit" className={cn(primaryAction, 'h-11')}>
@@ -205,6 +227,26 @@ export function SettingsScreen({ tables, focusQr, onBack }: { tables: Restaurant
             </ul>
           </Panel>
         </section>
+
+        {settings.demoData && (
+          <Panel>
+            <h2 className="font-serif text-xl font-semibold">Données de démonstration</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Des commandes et un historique de ventes fictifs sont affichés pour vous montrer l’application. Quand vous êtes prêt à travailler pour de vrai, supprimez-les : seules vos vraies commandes resteront.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                if (!window.confirm('Supprimer toutes les données de démonstration ?')) return
+                ordersActions.clearDemo()
+                saveSettings({ ...settings, demoData: false })
+              }}
+              className="mt-4 inline-flex h-11 items-center rounded-xl border border-destructive/40 px-5 text-sm font-semibold text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-destructive/30"
+            >
+              Supprimer les données de démonstration
+            </button>
+          </Panel>
+        )}
       </div>
     </>
   )

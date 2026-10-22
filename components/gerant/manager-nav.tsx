@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardList, Flame, House, LayoutGrid, MoreHorizontal, UtensilsCrossed } from 'lucide-react'
+import { BarChart3, ChefHat, ClipboardList, Flame, House, LayoutGrid, MoreHorizontal, UtensilsCrossed, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { manager, type ManagerView } from '@/lib/gerant-data'
@@ -8,13 +8,18 @@ type NavItem = { view: ManagerView; label: string; icon: LucideIcon }
 const mobileItems: NavItem[] = [
   { view: 'accueil', label: 'Accueil', icon: House },
   { view: 'commandes', label: 'Commandes', icon: ClipboardList },
-  { view: 'tables', label: 'Tables', icon: LayoutGrid },
-  { view: 'menu', label: 'Menu', icon: UtensilsCrossed },
+  { view: 'cuisine', label: 'Cuisine', icon: ChefHat },
+  { view: 'caisse', label: 'Caisse', icon: Wallet },
   { view: 'plus', label: 'Plus', icon: MoreHorizontal },
 ]
 
 const desktopItems: NavItem[] = [
-  ...mobileItems.slice(0, 4),
+  { view: 'accueil', label: 'Accueil', icon: House },
+  { view: 'commandes', label: 'Commandes', icon: ClipboardList },
+  { view: 'cuisine', label: 'Cuisine', icon: ChefHat },
+  { view: 'caisse', label: 'Caisse', icon: Wallet },
+  { view: 'tables', label: 'Tables', icon: LayoutGrid },
+  { view: 'menu', label: 'Menu', icon: UtensilsCrossed },
   { view: 'rapports', label: 'Rapports', icon: BarChart3 },
   { view: 'plus', label: 'Modules', icon: MoreHorizontal },
 ]
@@ -22,7 +27,7 @@ const desktopItems: NavItem[] = [
 type NavProps = { current: ManagerView; onNavigate: (view: ManagerView) => void; badges?: Partial<Record<ManagerView, number>> }
 
 export function BottomNav({ current, onNavigate, badges }: NavProps) {
-  const active = current === 'rapports' ? 'plus' : current
+  const active = mobileItems.some((i) => i.view === current) ? current : 'plus'
   return (
     <nav
       aria-label="Navigation principale"
@@ -59,7 +64,7 @@ export function BottomNav({ current, onNavigate, badges }: NavProps) {
   )
 }
 
-export function Sidebar({ current, onNavigate, badges }: NavProps) {
+export function Sidebar({ current, onNavigate, badges, restaurantName }: NavProps & { restaurantName: string }) {
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col bg-[linear-gradient(180deg,#7a2e12_0%,#4a1c0b_100%)] px-5 py-7 text-cream lg:flex">
       <a href="/" className="flex items-center gap-2.5 px-2" aria-label="RestoBen, retour au site">
@@ -102,7 +107,7 @@ export function Sidebar({ current, onNavigate, badges }: NavProps) {
 
       <div className="mt-auto rounded-xl border border-cream/15 bg-cream/5 p-4">
         <p className="text-xs uppercase tracking-[0.2em] text-cream/50">Établissement</p>
-        <p className="mt-1 font-serif text-lg font-semibold">{manager.restaurant}</p>
+        <p className="mt-1 font-serif text-lg font-semibold">{restaurantName}</p>
         <p className="text-sm text-cream/70">{manager.city} · Formule Standard</p>
       </div>
     </aside>

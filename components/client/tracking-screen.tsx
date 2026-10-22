@@ -36,6 +36,7 @@ export function TrackingScreen({
   }
 
   const served = order.stage >= 3
+  const cancelled = !!order.cancelled
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-8 pt-5 lg:pt-10">
@@ -51,6 +52,11 @@ export function TrackingScreen({
         </div>
       </header>
 
+      {cancelled && (
+        <p role="alert" className="mt-6 rounded-xl bg-destructive/10 p-4 text-sm font-medium text-destructive">
+          Cette commande a été annulée par le restaurant. Appelez un serveur si besoin.
+        </p>
+      )}
       <div className="lg:mt-10 lg:grid lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-12">
       <ol className="mt-8 flex flex-col lg:mt-0" aria-label="Étapes de la commande">
         {stages.map((s, i) => {
