@@ -27,13 +27,14 @@ export function MenuScreen({
 
   return (
     <div>
-      <header className="sticky top-0 z-10 bg-background/95 px-4 pb-0 pt-5 backdrop-blur">
+      <header className="sticky top-0 z-10 bg-background/95 px-4 pb-0 pt-5 backdrop-blur lg:top-16 lg:px-0 lg:pt-8">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="font-serif text-2xl font-semibold leading-tight">{restaurant.name}</h1>
-            <p className="text-sm text-muted-foreground">Table {table}</p>
+            <h1 className="font-serif text-2xl font-semibold leading-tight lg:text-4xl">{restaurant.name}</h1>
+            <p className="text-sm text-muted-foreground lg:hidden">Table {table}</p>
+            <p className="hidden text-muted-foreground lg:block">Choisissez vos plats, nous les préparons pour votre table.</p>
           </div>
-          <button type="button" onClick={onCart} className={cn(roundButton, 'relative')} aria-label={`Panier, ${cartCount} article${cartCount > 1 ? 's' : ''}`}>
+          <button type="button" onClick={onCart} className={cn(roundButton, 'relative lg:hidden')} aria-label={`Panier, ${cartCount} article${cartCount > 1 ? 's' : ''}`}>
             <ShoppingBag className="size-5" aria-hidden="true" />
             {cartCount > 0 && (
               <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-ember text-[11px] font-semibold text-primary-foreground">
@@ -62,19 +63,26 @@ export function MenuScreen({
         </div>
       </header>
 
-      <ul className="flex flex-col gap-3 px-4 py-4">
+      <ul className="flex flex-col gap-3 px-4 py-4 sm:grid sm:grid-cols-2 sm:gap-4 lg:px-0">
         {dishes.map((dish) => {
           const qty = cart[dish.id] ?? 0
           return (
-            <li key={dish.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)]">
+            <li
+              key={dish.id}
+              className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)] sm:flex-col sm:items-stretch sm:gap-0 sm:overflow-hidden sm:p-0"
+            >
               <button
                 type="button"
                 onClick={() => onOpen(dish.id)}
-                className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 sm:flex-col sm:items-stretch sm:gap-0 sm:rounded-none"
               >
-                <DishImage dish={dish} sizes="80px" className={cn('size-20 shrink-0 rounded-xl', !dish.available && 'grayscale')} />
-                <span className="min-w-0">
-                  <span className="block truncate font-semibold">{dish.name}</span>
+                <DishImage
+                  dish={dish}
+                  sizes="(min-width: 640px) 320px, 80px"
+                  className={cn('size-20 shrink-0 rounded-xl sm:aspect-[4/3] sm:size-auto sm:w-full sm:rounded-none', !dish.available && 'grayscale')}
+                />
+                <span className="min-w-0 sm:p-4 sm:pb-2">
+                  <span className="block truncate font-semibold sm:text-lg">{dish.name}</span>
                   <span className={cn('mt-0.5 block font-semibold tabular-nums', dish.available ? 'text-ember-deep' : 'text-muted-foreground')}>
                     {fcfa(dish.price)}
                   </span>
@@ -84,19 +92,22 @@ export function MenuScreen({
                 </span>
               </button>
 
-              {dish.available &&
-                (qty > 0 ? (
-                  <QtyStepper qty={qty} onChange={(n) => onSetQty(dish.id, n)} name={dish.name} size="sm" />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => onSetQty(dish.id, 1)}
-                    aria-label={`Ajouter ${dish.name} au panier`}
-                    className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-success text-primary-foreground shadow-md shadow-success/25 transition-colors hover:bg-success/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-success/40"
-                  >
-                    <Plus className="size-5" aria-hidden="true" />
-                  </button>
-                ))}
+              {dish.available && (
+                <div className="sm:flex sm:justify-end sm:px-4 sm:pb-4">
+                  {qty > 0 ? (
+                    <QtyStepper qty={qty} onChange={(n) => onSetQty(dish.id, n)} name={dish.name} size="sm" />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onSetQty(dish.id, 1)}
+                      aria-label={`Ajouter ${dish.name} au panier`}
+                      className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-success text-primary-foreground shadow-md shadow-success/25 transition-colors hover:bg-success/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-success/40"
+                    >
+                      <Plus className="size-5" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              )}
             </li>
           )
         })}

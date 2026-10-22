@@ -20,9 +20,9 @@ export function DishScreen({
   const [favorite, setFavorite] = useState(false)
 
   return (
-    <div className="pb-28">
-      <div className="relative">
-        <DishImage dish={dish} sizes="(min-width: 448px) 448px, 100vw" className="h-72 w-full" />
+    <div className="pb-28 lg:mx-auto lg:grid lg:max-w-5xl lg:grid-cols-2 lg:items-start lg:gap-12 lg:px-0 lg:pb-12 lg:pt-10">
+      <div className="relative lg:sticky lg:top-24 lg:overflow-hidden lg:rounded-3xl">
+        <DishImage dish={dish} sizes="(min-width: 448px) 448px, 100vw" className="h-72 w-full md:h-96 lg:h-[32rem]" />
         <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
           <button type="button" onClick={onBack} className={roundButton} aria-label="Retour au menu">
             <ArrowLeft className="size-5" aria-hidden="true" />
@@ -33,8 +33,8 @@ export function DishScreen({
         </div>
       </div>
 
-      <div className="relative -mt-6 rounded-t-3xl bg-background px-5 pt-6">
-        <h1 className="font-serif text-3xl font-semibold leading-tight">{dish.name}</h1>
+      <div className="relative -mt-6 rounded-t-3xl bg-background px-5 pt-6 md:mx-auto md:max-w-2xl lg:mt-0 lg:max-w-none lg:rounded-none lg:px-0 lg:pt-0">
+        <h1 className="font-serif text-3xl font-semibold leading-tight lg:text-5xl">{dish.name}</h1>
         <p className="mt-2 text-pretty leading-relaxed text-muted-foreground">{dish.description}</p>
 
         <div className="mt-4 flex items-center justify-between">
@@ -70,14 +70,14 @@ export function DishScreen({
             </ul>
           )}
         </section>
-      </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t border-border bg-background/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <button type="button" onClick={() => onAdd(qty)} disabled={!dish.available} className={greenAction}>
-          <ShoppingBag className="size-4" aria-hidden="true" />
-          {dish.available ? `Ajouter au panier · ${fcfa(dish.price * qty)}` : 'Indisponible aujourd’hui'}
-          {dish.available && <ChevronRight className="size-4" aria-hidden="true" />}
-        </button>
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:mt-8 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+          <button type="button" onClick={() => onAdd(qty)} disabled={!dish.available} className={`${greenAction} md:mx-auto md:max-w-md lg:mx-0`}>
+            <ShoppingBag className="size-4" aria-hidden="true" />
+            {dish.available ? `Ajouter au panier · ${fcfa(dish.price * qty)}` : 'Indisponible aujourd’hui'}
+            {dish.available && <ChevronRight className="size-4" aria-hidden="true" />}
+          </button>
+        </div>
       </div>
     </div>
   )

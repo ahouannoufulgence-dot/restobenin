@@ -9,8 +9,8 @@ export function ReviewSheet({ onClose }: { onClose: () => void }) {
   const [sent, setSent] = useState(false)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-espresso/60" role="dialog" aria-modal="true" aria-labelledby="review-title">
-      <div className="w-full max-w-md rounded-t-3xl bg-background p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom duration-300">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-espresso/60 md:items-center md:p-6" role="dialog" aria-modal="true" aria-labelledby="review-title">
+      <div className="w-full max-w-md rounded-t-3xl bg-background p-5 md:rounded-3xl md:p-7 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom duration-300">
         {sent ? (
           <div className="flex flex-col items-center py-6 text-center">
             <span className="flex size-14 items-center justify-center rounded-full bg-success text-primary-foreground">

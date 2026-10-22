@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { SERVICE_FEE, getDish, type Category, type PlacedOrder } from '@/lib/client-data'
-import { BottomNav, type ClientTab } from './bottom-nav'
-import { CartScreen } from './cart-screen'
+import { SERVICE_FEE, getDish, restaurant, type Category, type PlacedOrder } from '@/lib/client-data'
+import { BottomNav, TopNav, type ClientTab } from './bottom-nav'
+import { CartPanel, CartScreen } from './cart-screen'
 import { ConfirmedScreen } from './confirmed-screen'
 import { DishScreen } from './dish-screen'
 import { MenuScreen } from './menu-screen'
@@ -76,7 +76,7 @@ export function ClientApp({ table }: { table: string }) {
   if (view === 'confirmee' && order) {
     return (
       <>
-        <div className="mx-auto min-h-dvh max-w-md bg-background">
+        <div className="min-h-dvh bg-background">
           <ConfirmedScreen order={order} onTrack={() => go('suivi')} onReview={() => setReviewOpen(true)} onMenu={() => go('menu')} />
         </div>
         {reviewOpen && <ReviewSheet onClose={() => setReviewOpen(false)} />}
@@ -91,23 +91,33 @@ export function ClientApp({ table }: { table: string }) {
     go(t === 'menu' ? 'menu' : t === 'panier' ? 'panier' : 'suivi')
   }
 
+  const menu = (
+    <MenuScreen
+      table={table}
+      category={category}
+      onCategory={setCategory}
+      cart={cart}
+      cartCount={cartCount}
+      onOpen={(id) => {
+        setSelectedId(id)
+        go('plat')
+      }}
+      onSetQty={setQty}
+      onCart={() => go('panier')}
+    />
+  )
+
   return (
-    <div className="mx-auto min-h-dvh max-w-md bg-background shadow-xl shadow-black/5">
-      <div className={dish ? '' : 'pb-24'}>
+    <div className="min-h-dvh bg-background">
+      <TopNav current={tab} onNavigate={navigate} cartCount={cartCount} hasOrder={orderActive} restaurant={restaurant.name} table={table} />
+      <div className={dish ? 'lg:px-8' : 'pb-24 lg:pb-12'}>
         {view === 'menu' && (
-          <MenuScreen
-            table={table}
-            category={category}
-            onCategory={setCategory}
-            cart={cart}
-            cartCount={cartCount}
-            onOpen={(id) => {
-              setSelectedId(id)
-              go('plat')
-            }}
-            onSetQty={setQty}
-            onCart={() => go('panier')}
-          />
+          <div className="mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10 lg:px-8">
+            {menu}
+            <aside className="hidden lg:sticky lg:top-24 lg:mt-8 lg:block lg:self-start">
+              <CartPanel cart={cart} onSetQty={setQty} onOrder={placeOrder} onBrowse={() => go('menu')} />
+            </aside>
+          </div>
         )}
         {dish && (
           <DishScreen

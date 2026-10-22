@@ -19,8 +19,8 @@ export function TrackingScreen({
 }) {
   if (!order) {
     return (
-      <div className="px-4 pt-5">
-        <h1 className="font-serif text-2xl font-semibold">Suivi de commande</h1>
+      <div className="mx-auto max-w-4xl px-4 pt-5 lg:pt-10">
+        <h1 className="font-serif text-2xl font-semibold lg:text-4xl">Suivi de commande</h1>
         <div className="mt-16 flex flex-col items-center text-center">
           <span className="flex size-16 items-center justify-center rounded-full bg-sand text-ember-deep">
             <ReceiptText className="size-7" aria-hidden="true" />
@@ -38,20 +38,21 @@ export function TrackingScreen({
   const served = order.stage >= 3
 
   return (
-    <div className="px-4 pb-8 pt-5">
+    <div className="mx-auto max-w-4xl px-4 pb-8 pt-5 lg:pt-10">
       <header className="flex items-center gap-3">
         <button type="button" onClick={onBack} className={roundButton} aria-label="Retour">
           <ArrowLeft className="size-5" aria-hidden="true" />
         </button>
         <div>
-          <h1 className="font-serif text-2xl font-semibold leading-tight">Suivi de commande</h1>
+          <h1 className="font-serif text-2xl font-semibold leading-tight lg:text-4xl">Suivi de commande</h1>
           <p className="text-sm text-muted-foreground">
             Commande <span className="font-semibold text-ember-deep">#{order.number}</span> · {fcfa(order.total)}
           </p>
         </div>
       </header>
 
-      <ol className="mt-8 flex flex-col" aria-label="Étapes de la commande">
+      <div className="lg:mt-10 lg:grid lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-12">
+      <ol className="mt-8 flex flex-col lg:mt-0" aria-label="Étapes de la commande">
         {stages.map((s, i) => {
           const done = i <= order.stage
           const current = i === order.stage && !served
@@ -81,6 +82,7 @@ export function TrackingScreen({
         })}
       </ol>
 
+      <div>
       <section className="mt-8 rounded-2xl border border-border bg-card p-4" aria-label="Récapitulatif">
         <ul className="flex flex-col gap-1.5 text-sm">
           {order.lines.map((l) => (
@@ -110,6 +112,8 @@ export function TrackingScreen({
         <button type="button" onClick={onMenu} className={served ? emberAction : outlineAction}>
           Commander autre chose
         </button>
+      </div>
+      </div>
       </div>
     </div>
   )

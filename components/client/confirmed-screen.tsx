@@ -25,7 +25,7 @@ export function ConfirmedScreen({
   onMenu: () => void
 }) {
   return (
-    <main className="relative flex min-h-dvh flex-col items-center px-6 pb-10 pt-24 text-center">
+    <main className="relative mx-auto flex min-h-dvh max-w-md flex-col items-center px-6 pb-10 pt-24 text-center lg:justify-center lg:pt-10">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-56" aria-hidden="true">
         {confetti.map((c, i) => (
           <span
