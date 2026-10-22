@@ -131,10 +131,6 @@ export const catalog: ClientDish[] = [
   },
 ]
 
-export function getDish(id: string) {
-  return catalog.find((d) => d.id === id)
-}
-
 export type OrderLine = { id: string; name: string; qty: number; price: number }
 
 export type PlacedOrder = {

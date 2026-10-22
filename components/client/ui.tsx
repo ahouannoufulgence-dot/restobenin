@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { GlassWater, Minus, Plus, Star } from 'lucide-react'
+import { CakeSlice, GlassWater, Minus, Plus, Star, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ClientDish } from '@/lib/client-data'
 
@@ -23,9 +23,10 @@ export function DishImage({ dish, sizes, className }: { dish: ClientDish; sizes:
       </div>
     )
   }
+  const Fallback = dish.category === 'boissons' ? GlassWater : dish.category === 'desserts' ? CakeSlice : UtensilsCrossed
   return (
     <div className={cn('flex items-center justify-center bg-sand text-ember-deep/60', className)} role="img" aria-label={dish.name}>
-      <GlassWater className="size-1/3" strokeWidth={1.5} aria-hidden="true" />
+      <Fallback className="size-1/3" strokeWidth={1.5} aria-hidden="true" />
     </div>
   )
 }

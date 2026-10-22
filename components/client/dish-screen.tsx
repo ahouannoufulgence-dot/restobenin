@@ -47,7 +47,7 @@ export function DishScreen({
             <h2 id="reviews-title" className="font-serif text-xl font-semibold">
               Avis clients
             </h2>
-            <Rating rating={dish.rating} count={dish.reviewCount} />
+            {dish.reviewCount > 0 && <Rating rating={dish.rating} count={dish.reviewCount} />}
           </div>
           {dish.reviews.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">Pas encore d’avis. Soyez le premier à donner le vôtre après votre repas.</p>

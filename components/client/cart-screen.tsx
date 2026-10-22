@@ -1,18 +1,19 @@
 import { ArrowLeft, ChevronRight, ShoppingBag, Trash2, Wallet } from 'lucide-react'
-import { SERVICE_FEE, getDish } from '@/lib/client-data'
+import { SERVICE_FEE, type ClientDish } from '@/lib/client-data'
 import { fcfa } from '@/lib/gerant-data'
 import { DishImage, QtyStepper, emberAction, roundButton } from './ui'
 
 type CartProps = {
+  dishes: ClientDish[]
   cart: Record<string, number>
   onSetQty: (id: string, qty: number) => void
   onOrder: () => void
   onBrowse: () => void
 }
 
-export function CartSummary({ cart, onSetQty, onOrder, onBrowse }: CartProps) {
+export function CartSummary({ dishes, cart, onSetQty, onOrder, onBrowse }: CartProps) {
   const lines = Object.entries(cart).flatMap(([id, qty]) => {
-    const dish = getDish(id)
+    const dish = dishes.find((d) => d.id === id)
     return dish ? [{ dish, qty }] : []
   })
   const subtotal = lines.reduce((sum, l) => sum + l.dish.price * l.qty, 0)

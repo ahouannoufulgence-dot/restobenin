@@ -2,17 +2,16 @@
 
 import { useState } from 'react'
 import {
-  initialDishes,
   initialOrders,
   initialTables,
   stock,
-  type Dish,
   type ManagerView,
   type Order,
   type OrderStatus,
   type RestaurantTable,
   type TableStatus,
 } from '@/lib/gerant-data'
+import { menuActions, useMenu } from '@/lib/menu-store'
 import { WelcomeScreen } from './welcome-screen'
 import { BottomNav, Sidebar } from './manager-nav'
 import { DashboardScreen } from './dashboard-screen'
@@ -29,7 +28,7 @@ export function ManagerApp() {
   const [view, setView] = useState<ManagerView>('accueil')
   const [orders, setOrders] = useState<Order[]>(initialOrders)
   const [tables, setTables] = useState<RestaurantTable[]>(initialTables)
-  const [dishes, setDishes] = useState<Dish[]>(initialDishes)
+  const dishes = useMenu()
 
   function navigate(next: ManagerView) {
     setStarted(true)
@@ -44,8 +43,6 @@ export function ManagerApp() {
   const updateOrder = (id: string, status: OrderStatus) => setOrders((list) => list.map((o) => (o.id === id ? { ...o, status } : o)))
   const cycleTable = (id: string) => setTables((list) => list.map((t) => (t.id === id ? { ...t, status: nextTableStatus[t.status] } : t)))
   const addTable = () => setTables((list) => [...list, { id: `T${list.length + 1}`, seats: 4, status: 'libre' }])
-  const toggleDish = (id: string) => setDishes((list) => list.map((d) => (d.id === id ? { ...d, available: !d.available } : d)))
-  const addDish = (name: string, price: number) => setDishes((list) => [...list, { id: `d-${Date.now()}`, name, price, available: true }])
 
   const badges = {
     commandes: orders.filter((o) => o.status === 'en_attente').length,
@@ -60,7 +57,7 @@ export function ManagerApp() {
           {view === 'accueil' && <DashboardScreen orders={orders} tables={tables} onNavigate={navigate} />}
           {view === 'commandes' && <OrdersScreen orders={orders} onUpdate={updateOrder} />}
           {view === 'tables' && <TablesScreen tables={tables} onCycle={cycleTable} onAdd={addTable} />}
-          {view === 'menu' && <MenuScreen dishes={dishes} onToggle={toggleDish} onAdd={addDish} />}
+          {view === 'menu' && <MenuScreen dishes={dishes} onToggle={menuActions.toggle} onSave={menuActions.save} onRemove={menuActions.remove} newId={menuActions.newId} />}
           {view === 'rapports' && <ReportsScreen />}
           {view === 'plus' && <MoreScreen onNavigate={navigate} />}
         </div>

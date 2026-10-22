@@ -1,10 +1,11 @@
 import { Plus, ShoppingBag } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { catalog, categories, restaurant, type Category } from '@/lib/client-data'
+import { categories, restaurant, type Category, type ClientDish } from '@/lib/client-data'
 import { fcfa } from '@/lib/gerant-data'
 import { DishImage, QtyStepper, Rating, roundButton } from './ui'
 
 export function MenuScreen({
+  dishes: allDishes,
   table,
   category,
   onCategory,
@@ -14,6 +15,7 @@ export function MenuScreen({
   onSetQty,
   onCart,
 }: {
+  dishes: ClientDish[]
   table: string
   category: Category | 'tous'
   onCategory: (c: Category | 'tous') => void
@@ -23,7 +25,7 @@ export function MenuScreen({
   onSetQty: (id: string, qty: number) => void
   onCart: () => void
 }) {
-  const dishes = catalog.filter((d) => category === 'tous' || d.category === category)
+  const dishes = allDishes.filter((d) => category === 'tous' || d.category === category)
 
   return (
     <div>
@@ -87,7 +89,9 @@ export function MenuScreen({
                     {fcfa(dish.price)}
                   </span>
                   <span className="mt-1 block">
-                    {dish.available ? <Rating rating={dish.rating} count={dish.reviewCount} /> : <span className="text-xs font-medium text-muted-foreground">Indisponible aujourd’hui</span>}
+                    {dish.available ? (
+                      dish.reviewCount > 0 ? <Rating rating={dish.rating} count={dish.reviewCount} /> : <span className="text-xs font-semibold text-ember-deep">Nouveau</span>
+                    ) : <span className="text-xs font-medium text-muted-foreground">Indisponible aujourd’hui</span>}
                   </span>
                 </span>
               </button>

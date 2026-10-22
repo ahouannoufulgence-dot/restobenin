@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { SERVICE_FEE, getDish, restaurant, type Category, type PlacedOrder } from '@/lib/client-data'
+import { useEffect, useMemo, useState } from 'react'
+import { SERVICE_FEE, restaurant, type Category, type PlacedOrder } from '@/lib/client-data'
+import { useClientDishes } from '@/lib/menu-store'
 import { BottomNav, TopNav, type ClientTab } from './bottom-nav'
 import { CartPanel, CartScreen } from './cart-screen'
 import { ConfirmedScreen } from './confirmed-screen'
@@ -21,9 +22,13 @@ export function ClientApp({ table }: { table: string }) {
   const [view, setView] = useState<View>('accueil')
   const [category, setCategory] = useState<Category | 'tous'>('tous')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [cart, setCart] = useState<Record<string, number>>({})
+  const dishes = useClientDishes()
+  const [rawCart, setCart] = useState<Record<string, number>>({})
   const [order, setOrder] = useState<PlacedOrder | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
+
+  // Si le gérant retire un plat ou le rend indisponible, il disparaît aussi du panier.
+  const cart = useMemo(() => Object.fromEntries(Object.entries(rawCart).filter(([id]) => dishes.some((d) => d.id === id && d.available))), [rawCart, dishes])
 
   const orderStage = order?.stage ?? 0
   const orderActive = order !== null && orderStage < 3
@@ -52,7 +57,7 @@ export function ClientApp({ table }: { table: string }) {
 
   function placeOrder() {
     const lines = Object.entries(cart).flatMap(([id, qty]) => {
-      const dish = getDish(id)
+      const dish = dishes.find((d) => d.id === id)
       return dish ? [{ id, name: dish.name, qty, price: dish.price }] : []
     })
     if (lines.length === 0) return
@@ -84,7 +89,7 @@ export function ClientApp({ table }: { table: string }) {
     )
   }
 
-  const dish = view === 'plat' && selectedId ? getDish(selectedId) : undefined
+  const dish = view === 'plat' && selectedId ? dishes.find((d) => d.id === selectedId) : undefined
   const tab: ClientTab | null = view === 'menu' ? 'menu' : view === 'panier' ? 'panier' : view === 'suivi' ? 'suivi' : null
 
   function navigate(t: ClientTab) {
@@ -93,6 +98,7 @@ export function ClientApp({ table }: { table: string }) {
 
   const menu = (
     <MenuScreen
+      dishes={dishes}
       table={table}
       category={category}
       onCategory={setCategory}
@@ -115,7 +121,7 @@ export function ClientApp({ table }: { table: string }) {
           <div className="mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10 lg:px-8">
             {menu}
             <aside className="hidden lg:sticky lg:top-24 lg:mt-8 lg:block lg:self-start">
-              <CartPanel cart={cart} onSetQty={setQty} onOrder={placeOrder} onBrowse={() => go('menu')} />
+              <CartPanel dishes={dishes} cart={cart} onSetQty={setQty} onOrder={placeOrder} onBrowse={() => go('menu')} />
             </aside>
           </div>
         )}
@@ -131,7 +137,7 @@ export function ClientApp({ table }: { table: string }) {
             }}
           />
         )}
-        {view === 'panier' && <CartScreen cart={cart} onSetQty={setQty} onBack={() => go('menu')} onOrder={placeOrder} />}
+        {view === 'panier' && <CartScreen dishes={dishes} cart={cart} onSetQty={setQty} onBack={() => go('menu')} onOrder={placeOrder} />}
         {view === 'suivi' && <TrackingScreen order={order} onMenu={() => go('menu')} onReview={() => setReviewOpen(true)} onBack={() => go('menu')} />}
       </div>
       {!dish && <BottomNav current={tab} onNavigate={navigate} cartCount={cartCount} hasOrder={orderActive} />}

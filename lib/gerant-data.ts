@@ -17,14 +17,6 @@ export type RestaurantTable = {
   status: TableStatus
 }
 
-export type Dish = {
-  id: string
-  name: string
-  price: number
-  image?: string
-  available: boolean
-}
-
 export type ManagerView = 'accueil' | 'commandes' | 'tables' | 'menu' | 'rapports' | 'plus'
 
 export const manager = {
@@ -60,14 +52,6 @@ export const initialTables: RestaurantTable[] = [
   { id: 'T10', seats: 6, status: 'libre' },
   { id: 'T11', seats: 6, status: 'occupee' },
   { id: 'T12', seats: 2, status: 'occupee' },
-]
-
-export const initialDishes: Dish[] = [
-  { id: 'd-yassa', name: 'Poulet Yassa', price: 3500, image: '/images/gerant/poulet-yassa.png', available: true },
-  { id: 'd-riz', name: 'Riz au Poisson', price: 3000, image: '/images/gerant/riz-poisson.png', available: true },
-  { id: 'd-mafe', name: 'Mafé Bœuf', price: 3800, image: '/images/gerant/mafe-boeuf.png', available: true },
-  { id: 'd-akassa', name: 'Akassa sauce poisson', price: 1500, image: '/images/gerant/akassa.png', available: false },
-  { id: 'd-tiramisu', name: 'Tiramisu spécial', price: 2500, image: '/images/gerant/tiramisu.png', available: true },
 ]
 
 export const salesToday = {
