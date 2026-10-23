@@ -5,11 +5,11 @@ import { ChevronDown, Globe, Menu, X } from 'lucide-react'
 import { Logo } from './logo'
 
 const navItems = [
-  { label: 'Solutions', href: '#solutions', hasMenu: true },
-  { label: 'Fonctionnalités', href: '#fonctionnalites' },
-  { label: 'Ressources', href: '#ressources', hasMenu: true },
-  { label: 'À propos', href: '#a-propos' },
-  { label: 'Contact', href: '#contact' },
+  { label: 'Solutions', href: '/#solutions', hasMenu: true },
+  { label: 'Fonctionnalités', href: '/#fonctionnalites' },
+  { label: 'Ressources', href: '/#ressources', hasMenu: true },
+  { label: 'À propos', href: '/#a-propos' },
+  { label: 'Contact', href: '/#contact' },
 ]
 
 export function SiteHeader() {
@@ -18,7 +18,7 @@ export function SiteHeader() {
   return (
     <header className="absolute inset-x-0 top-0 z-30">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-5 lg:px-10">
-        <Logo />
+        <Logo href="/" />
 
         <nav aria-label="Navigation principale" className="hidden lg:block">
           <ul className="flex items-center gap-7 xl:gap-9">

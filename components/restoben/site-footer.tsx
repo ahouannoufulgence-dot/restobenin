@@ -31,7 +31,7 @@ export function SiteFooter() {
     <footer id="contact" className="bg-terracotta text-cream">
       <div className="mx-auto grid max-w-7xl gap-12 px-6 py-16 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1.7fr] lg:px-10">
         <div>
-          <Logo withTagline={false} />
+          <Logo withTagline={false} href="/" />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-cream/80">
             RestoBen — L&apos;excellence opérationnelle pour les restaurants béninois.
           </p>
@@ -88,10 +88,10 @@ export function SiteFooter() {
 
       <div className="border-t border-cream/15">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-5 text-xs text-cream/70 sm:flex-row sm:items-center sm:justify-between lg:px-10">
-          <p>© {new Date().getFullYear()} RestoBen. Tous droits réservés. Fait avec passion pour le Bénin.</p>
+          <p>© {new Date().getFullYear()} RestoBen · Yanvar Academy. Tous droits réservés. Fait avec passion pour le Bénin.</p>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-gold">Mentions légales</a>
-            <a href="#" className="hover:text-gold">Politique de confidentialité</a>
+            <a href="/mentions-legales" className="hover:text-gold">Mentions légales</a>
+            <a href="/politique-de-confidentialite" className="hover:text-gold">Politique de confidentialité</a>
           </div>
         </div>
       </div>
