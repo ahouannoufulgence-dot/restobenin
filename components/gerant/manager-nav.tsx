@@ -64,7 +64,7 @@ export function BottomNav({ current, onNavigate, badges }: NavProps) {
   )
 }
 
-export function Sidebar({ current, onNavigate, badges, restaurantName }: NavProps & { restaurantName: string }) {
+export function Sidebar({ current, onNavigate, badges, restaurantName, hidden = [] }: NavProps & { restaurantName: string; hidden?: ManagerView[] }) {
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col bg-[linear-gradient(180deg,#7a2e12_0%,#4a1c0b_100%)] px-5 py-7 text-cream lg:flex">
       <a href="/" className="flex items-center gap-2.5 px-2" aria-label="RestoBen, retour au site">
@@ -79,7 +79,7 @@ export function Sidebar({ current, onNavigate, badges, restaurantName }: NavProp
 
       <nav aria-label="Navigation principale" className="mt-10">
         <ul className="flex flex-col gap-1">
-          {desktopItems.map(({ view, label, icon: Icon }) => {
+          {desktopItems.filter((i) => !hidden.includes(i.view)).map(({ view, label, icon: Icon }) => {
             const isActive = current === view
             const badge = badges?.[view]
             return (

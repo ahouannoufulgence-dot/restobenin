@@ -5,20 +5,21 @@ import Link from 'next/link'
 import { BarChart3, ChevronRight, CircleHelp, CreditCard, LayoutGrid, LogOut, Package, QrCode, Settings, Store, UtensilsCrossed, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { signOut } from '@/lib/auth'
 import { fcfa, stock, type ManagerView } from '@/lib/gerant-data'
 import { Panel, ScreenHeader } from './shared'
 
-type Module = { label: string; description: string; icon: LucideIcon; badge?: string; action?: 'stock' | ManagerView }
+type Module = { label: string; description: string; icon: LucideIcon; badge?: string; action?: 'stock' | ManagerView; managerOnly?: boolean }
 
 const modules: Module[] = [
-  { label: 'Rapports', description: 'Ventes par jour, semaine, mois, année + export PDF', icon: BarChart3, action: 'rapports' },
+  { label: 'Rapports', description: 'Ventes par jour, semaine, mois, année + export PDF', icon: BarChart3, action: 'rapports', managerOnly: true },
   { label: 'Tables', description: 'Plan de salle et occupation', icon: LayoutGrid, action: 'tables' },
   { label: 'Menu', description: 'Plats, prix et photos', icon: UtensilsCrossed, action: 'menu' },
-  { label: 'Équipe', description: 'Gérer les accès et les rôles', icon: Users },
+  { label: 'Employés', description: 'Équipe, rôles et accès à l’application', icon: Users, action: 'employes', managerOnly: true },
   { label: 'Stock', description: 'Gestion avancée des stocks', icon: Package, badge: `${stock.alerts} alertes`, action: 'stock' },
-  { label: 'Paramètres restaurant', description: 'Restaurant, reçus, adresse du site, QR codes', icon: Store, action: 'parametres' },
-  { label: 'QR Code', description: 'Gérer les QR codes de table', icon: QrCode, action: 'qr' },
-  { label: 'Abonnement', description: 'Votre formule et facturation', icon: CreditCard },
+  { label: 'Paramètres restaurant', description: 'Restaurant, reçus, adresse du site, QR codes', icon: Store, action: 'parametres', managerOnly: true },
+  { label: 'QR Code', description: 'Gérer les QR codes de table', icon: QrCode, action: 'qr', managerOnly: true },
+  { label: 'Abonnement', description: 'Votre formule et facturation', icon: CreditCard, managerOnly: true },
   { label: 'Aide', description: 'Centre d’aide et tutoriels', icon: CircleHelp },
 ]
 
@@ -68,7 +69,7 @@ function StockCard({ cardRef }: { cardRef: React.Ref<HTMLElement> }) {
   )
 }
 
-export function MoreScreen({ onNavigate }: { onNavigate: (view: ManagerView) => void }) {
+export function MoreScreen({ onNavigate, isManager = true }: { onNavigate: (view: ManagerView) => void; isManager?: boolean }) {
   const stockRef = useRef<HTMLElement>(null)
 
   function handle(action: Module['action']) {
@@ -95,7 +96,7 @@ export function MoreScreen({ onNavigate }: { onNavigate: (view: ManagerView) => 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Panel className="p-2 sm:p-2">
           <ul className="divide-y divide-border">
-            {modules.map(({ label, description, icon: Icon, badge, action }) => (
+            {modules.filter((m) => isManager || !m.managerOnly).map(({ label, description, icon: Icon, badge, action }) => (
               <li key={label}>
                 <button
                   type="button"
@@ -116,7 +117,8 @@ export function MoreScreen({ onNavigate }: { onNavigate: (view: ManagerView) => 
             ))}
             <li>
               <Link
-                href="/"
+                href="/connexion"
+                onClick={signOut}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-destructive/25"
               >
                 <span className="inline-flex size-10 items-center justify-center rounded-xl bg-destructive/10">

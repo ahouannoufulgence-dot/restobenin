@@ -4,38 +4,52 @@ import { useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Check, Eye, EyeOff, Flame, Lock, Mail } from 'lucide-react'
+import { ArrowRight, Check, Eye, EyeOff, Flame, Lock, Mail, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DEMO_AUTH, MIN_PASSWORD, isValidEmail, signIn } from '@/lib/auth'
+import { DEMO_AUTH, MIN_PASSWORD, isValidIdentifier, signIn, type Role } from '@/lib/auth'
 import { legal } from '@/lib/legal-info'
 
 const fieldBase =
   'flex h-14 items-center gap-3 rounded-xl border bg-card/90 px-4 shadow-sm transition-colors focus-within:border-ember focus-within:ring-3 focus-within:ring-ember/20'
 
+const tabs: { role: Role; label: string }[] = [
+  { role: 'gerant', label: 'Gérant' },
+  { role: 'employe', label: 'Employé' },
+]
+
 export function LoginForm() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<Role>('gerant')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [remember, setRemember] = useState(true)
-  const [errors, setErrors] = useState<{ email?: string; password?: string; form?: string }>({})
+  const [errors, setErrors] = useState<{ identifier?: string; password?: string; form?: string }>({})
+  const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
-  const emailRef = useRef<HTMLInputElement>(null)
+  const identifierRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
+
+  function chooseRole(next: Role) {
+    setRole(next)
+    setErrors({})
+    setInfo('')
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    setInfo('')
     const next: typeof errors = {}
-    if (!email.trim()) next.email = 'Indiquez votre adresse e-mail.'
-    else if (!isValidEmail(email)) next.email = 'Cette adresse e-mail n’est pas valide.'
+    if (!identifier.trim()) next.identifier = 'Indiquez votre adresse e-mail ou votre téléphone.'
+    else if (!isValidIdentifier(identifier)) next.identifier = 'Saisissez une adresse e-mail ou un numéro de téléphone valide.'
     if (!password) next.password = 'Indiquez votre mot de passe.'
     else if (password.length < MIN_PASSWORD) next.password = `Le mot de passe contient au moins ${MIN_PASSWORD} caractères.`
     setErrors(next)
-    if (next.email) return emailRef.current?.focus()
+    if (next.identifier) return identifierRef.current?.focus()
     if (next.password) return passwordRef.current?.focus()
 
     setBusy(true)
-    const result = await signIn(email, password, remember)
+    const result = await signIn(identifier, password, remember, role)
     if (!result.ok) {
       setBusy(false)
       return setErrors({ form: result.error })
@@ -77,11 +91,40 @@ export function LoginForm() {
         <div className="mx-auto w-full max-w-md">
           <header className="text-center">
             <h1 className="font-serif text-4xl font-semibold text-foreground sm:text-5xl">Se connecter</h1>
-            <p className="mt-2 text-muted-foreground">Accédez à votre tableau de bord</p>
-            <span className="mx-auto mt-3 block h-0.5 w-16 bg-ember" aria-hidden="true" />
           </header>
 
-          <form onSubmit={submit} noValidate className="mt-8 flex flex-col gap-4">
+          <div role="tablist" aria-label="Type de compte" className="mt-6 grid grid-cols-2 gap-1 rounded-xl border border-border bg-card/90 p-1">
+            {tabs.map((t) => {
+              const selected = role === t.role
+              return (
+                <button
+                  key={t.role}
+                  type="button"
+                  role="tab"
+                  id={`login-tab-${t.role}`}
+                  aria-selected={selected}
+                  aria-controls="login-panel"
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => chooseRole(t.role)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                      e.preventDefault()
+                      chooseRole(t.role === 'gerant' ? 'employe' : 'gerant')
+                      document.getElementById(`login-tab-${t.role === 'gerant' ? 'employe' : 'gerant'}`)?.focus()
+                    }
+                  }}
+                  className={cn(
+                    'h-12 rounded-lg text-base font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40',
+                    selected ? 'bg-gradient-to-b from-ember to-ember-deep font-semibold text-primary-foreground shadow-md shadow-ember-deep/30' : 'text-foreground/85 hover:bg-muted/60',
+                  )}
+                >
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <form id="login-panel" role="tabpanel" aria-labelledby={`login-tab-${role}`} onSubmit={submit} noValidate className="mt-5 flex flex-col gap-4">
             {errors.form && (
               <p role="alert" className="rounded-xl bg-destructive/10 p-3 text-center text-sm font-medium text-destructive">
                 {errors.form}
@@ -89,30 +132,30 @@ export function LoginForm() {
             )}
 
             <div>
-              <label htmlFor="login-email" className="sr-only">
-                Adresse e-mail
+              <label htmlFor="login-identifier" className="sr-only">
+                Adresse e-mail ou téléphone
               </label>
-              <div className={cn(fieldBase, errors.email ? 'border-destructive' : 'border-border')}>
+              <div className={cn(fieldBase, errors.identifier ? 'border-destructive' : 'border-border')}>
                 <Mail className="size-6 shrink-0 text-espresso/80" strokeWidth={1.6} aria-hidden="true" />
                 <input
-                  ref={emailRef}
-                  id="login-email"
-                  type="email"
+                  ref={identifierRef}
+                  id="login-identifier"
+                  type="text"
                   inputMode="email"
-                  autoComplete="email"
+                  autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Adresse e-mail"
-                  aria-invalid={!!errors.email}
-                  aria-describedby={errors.email ? 'login-email-error' : undefined}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Adresse e-mail ou Téléphone"
+                  aria-invalid={!!errors.identifier}
+                  aria-describedby={errors.identifier ? 'login-identifier-error' : undefined}
                   className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
                 />
               </div>
-              {errors.email && (
-                <p id="login-email-error" className="mt-1.5 text-sm text-destructive">
-                  {errors.email}
+              {errors.identifier && (
+                <p id="login-identifier-error" className="mt-1.5 text-sm text-destructive">
+                  {errors.identifier}
                 </p>
               )}
             </div>
@@ -160,46 +203,75 @@ export function LoginForm() {
                 </span>
                 Se souvenir de moi
               </label>
-              <a
-                href={`mailto:${legal.email}?subject=${encodeURIComponent('Mot de passe oublié – RestoBen')}`}
-                className="font-medium text-ember-deep hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
-              >
-                Mot de passe oublié ?
-              </a>
+              {role === 'gerant' ? (
+                <a
+                  href={`mailto:${legal.email}?subject=${encodeURIComponent('Mot de passe oublié – RestoBen')}`}
+                  className="font-medium text-ember-deep hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+                >
+                  Mot de passe oublié ?
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setInfo('Mot de passe oublié ? Demandez à votre gérant de vous aider à en définir un nouveau.')}
+                  className="font-medium text-ember-deep hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+                >
+                  Mot de passe oublié ?
+                </button>
+              )}
             </div>
+
+            {info && (
+              <p role="status" className="rounded-xl bg-gold/15 p-3 text-center text-sm text-[#6b4510]">
+                {info}
+              </p>
+            )}
 
             <button
               type="submit"
               disabled={busy}
-              className="mt-1 inline-flex h-14 w-full items-center justify-center rounded-xl bg-ember-deep text-base font-semibold text-primary-foreground shadow-lg shadow-ember-deep/30 transition-colors hover:bg-ember-deep/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40 disabled:opacity-70"
+              className="mt-1 inline-flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-b from-ember to-ember-deep font-serif text-2xl font-medium text-primary-foreground shadow-lg shadow-ember-deep/30 transition-colors hover:from-ember-deep hover:to-ember-deep focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40 disabled:opacity-70"
             >
               {busy ? 'Connexion…' : 'Se connecter'}
+              {!busy && <ArrowRight className="size-6" aria-hidden="true" />}
             </button>
           </form>
 
-          <div className="my-6 flex items-center gap-4 text-sm text-muted-foreground" aria-hidden="true">
-            <span className="h-px flex-1 bg-ember/30" />
-            ou
-            <span className="h-px flex-1 bg-ember/30" />
-          </div>
-
-          <p className="text-center text-foreground/85">Pas encore de compte ?</p>
-          <p className="mt-1 text-center">
-            <Link href="/inscription" className="font-semibold text-ember-deep hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
-              Créer un compte
-            </Link>
+          <p className="mt-5 text-center text-sm text-foreground/85">
+            {role === 'gerant' ? 'Vous êtes employé ? Utilisez l’onglet ' : 'Vous êtes gérant ? Utilisez l’onglet '}
+            <button
+              type="button"
+              onClick={() => chooseRole(role === 'gerant' ? 'employe' : 'gerant')}
+              className="font-semibold text-ember-deep hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+            >
+              {role === 'gerant' ? 'Employé' : 'Gérant'}
+            </button>{' '}
+            ci-dessus.
           </p>
 
-          {DEMO_AUTH && (
-            <p className="mt-6 rounded-xl bg-gold/15 p-3 text-center text-xs leading-relaxed text-[#6b4510]">
-              Mode démonstration : les comptes ne sont pas encore vérifiés. Une adresse e-mail valide et {MIN_PASSWORD} caractères minimum suffisent pour entrer.
+          {role === 'gerant' && (
+            <p className="mt-3 text-center text-sm text-muted-foreground">
+              Pas encore de compte ?{' '}
+              <Link href="/inscription" className="font-semibold text-ember-deep hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
+                Créer un compte
+              </Link>
             </p>
           )}
 
-          <p className="mt-6 flex items-center justify-center gap-2 text-sm text-foreground/80">
-            <Lock className="size-4 text-espresso" aria-hidden="true" />
-            Connexion sécurisée – Données protégées
-          </p>
+          {DEMO_AUTH && (
+            <p className="mt-5 rounded-xl bg-gold/15 p-3 text-center text-xs leading-relaxed text-[#6b4510]">
+              {role === 'gerant'
+                ? `Mode démonstration : les comptes ne sont pas encore vérifiés. Une adresse e-mail ou un téléphone valide et ${MIN_PASSWORD} caractères minimum suffisent pour entrer.`
+                : `Mode démonstration : saisissez l’e-mail ou le téléphone d’un employé actif de la liste (ex. amina.diallo@restoben.bj) et un mot de passe de ${MIN_PASSWORD} caractères minimum.`}
+            </p>
+          )}
+
+          <div className="mt-6 flex items-center gap-4 text-gold" aria-hidden="true">
+            <span className="h-px flex-1 bg-gold/60" />
+            <ShieldCheck className="size-8" strokeWidth={1.5} />
+            <span className="h-px flex-1 bg-gold/60" />
+          </div>
+          <p className="mt-3 text-center text-sm text-foreground/80">Connexion sécurisée – Données protégées</p>
         </div>
       </section>
     </main>

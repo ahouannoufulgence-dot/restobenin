@@ -1,6 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { getSession, type Role } from '@/lib/auth'
+import { useEmployees } from '@/lib/employees-store'
 import { initialTables, stock, type ManagerView, type RestaurantTable, type TableStatus } from '@/lib/gerant-data'
 import { menuActions, useMenu } from '@/lib/menu-store'
 import { isUnpaid, ordersActions, useOrders } from '@/lib/orders-store'
@@ -17,6 +19,10 @@ import { MenuScreen } from './menu-screen'
 import { ReportsScreen } from './reports-screen'
 import { MoreScreen } from './more-screen'
 import { SettingsScreen } from './settings-screen'
+import { EmployeesScreen } from './employees-screen'
+
+// Vues réservées au gérant (un employé connecté via l'onglet « Employé » ne les voit pas).
+const managerOnlyViews: ManagerView[] = ['rapports', 'employes', 'parametres', 'qr']
 
 const nextTableStatus: Record<TableStatus, TableStatus> = { libre: 'occupee', occupee: 'reservee', reservee: 'libre' }
 
@@ -24,15 +30,21 @@ export function ManagerApp() {
   const [started, setStarted] = useState(false)
   const [view, setView] = useState<ManagerView>('accueil')
   const [tables, setTables] = useState<RestaurantTable[]>(initialTables)
+  const [role, setRole] = useState<Role | null>(null)
 
   // Données partagées entre tous les modules (et avec l'espace client).
   const orders = useOrders()
   const dishes = useMenu()
   const settings = useSettings()
+  const employees = useEmployees()
+
+  useEffect(() => setRole(getSession()?.role ?? null), [])
+  const isManager = role !== 'employe'
 
   const sales = useMemo(() => todayStats(orders, settings.demoData), [orders, settings.demoData])
 
   function navigate(next: ManagerView) {
+    if (!isManager && managerOnlyViews.includes(next)) return
     setStarted(true)
     setView(next)
     window.scrollTo({ top: 0 })
@@ -58,11 +70,11 @@ export function ManagerApp() {
     caisse: orders.filter(isUnpaid).length,
     plus: stock.alerts,
   }
-  const navCurrent = view === 'parametres' || view === 'qr' ? 'plus' : view
+  const navCurrent = view === 'parametres' || view === 'qr' || view === 'employes' ? 'plus' : view
 
   return (
     <div className="min-h-dvh bg-background lg:flex">
-      <Sidebar current={navCurrent} onNavigate={navigate} badges={badges} restaurantName={settings.restaurantName} />
+      <Sidebar current={navCurrent} onNavigate={navigate} badges={badges} restaurantName={settings.restaurantName} hidden={isManager ? [] : ['rapports']} />
       <main className="flex-1 pb-28 lg:pb-12">
         <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">
           {view === 'accueil' && <DashboardScreen orders={orders} tables={tablesView} sales={sales} restaurantName={settings.restaurantName} onNavigate={navigate} />}
@@ -71,9 +83,10 @@ export function ManagerApp() {
           {view === 'caisse' && <CashierScreen orders={orders} dishes={dishes} settings={settings} />}
           {view === 'tables' && <TablesScreen tables={tablesView} onCycle={cycleTable} onAdd={addTable} />}
           {view === 'menu' && <MenuScreen dishes={dishes} onToggle={menuActions.toggle} onSave={menuActions.save} onRemove={menuActions.remove} newId={menuActions.newId} />}
-          {view === 'rapports' && <ReportsScreen orders={orders} settings={settings} />}
-          {view === 'plus' && <MoreScreen onNavigate={navigate} />}
-          {(view === 'parametres' || view === 'qr') && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
+          {view === 'rapports' && isManager && <ReportsScreen orders={orders} settings={settings} />}
+          {view === 'plus' && <MoreScreen onNavigate={navigate} isManager={isManager} />}
+          {view === 'employes' && isManager && <EmployeesScreen employees={employees} />}
+          {(view === 'parametres' || view === 'qr') && isManager && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
         </div>
       </main>
       <BottomNav current={navCurrent} onNavigate={navigate} badges={badges} />
