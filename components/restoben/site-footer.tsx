@@ -92,6 +92,7 @@ export function SiteFooter() {
           <div className="flex gap-6">
             <a href="/mentions-legales" className="hover:text-gold">Mentions légales</a>
             <a href="/politique-de-confidentialite" className="hover:text-gold">Politique de confidentialité</a>
+            <a href="/conditions-utilisation" className="hover:text-gold">Conditions d’utilisation</a>
           </div>
         </div>
       </div>
