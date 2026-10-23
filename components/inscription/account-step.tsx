@@ -205,7 +205,7 @@ export function AccountStep({
             </button>
             <p className="text-sm text-muted-foreground">
               Vous avez déjà un compte ?{' '}
-              <Link href="/" className="font-semibold text-ember underline-offset-4 hover:underline">
+              <Link href="/connexion" className="font-semibold text-ember underline-offset-4 hover:underline">
                 Se connecter
               </Link>
             </p>

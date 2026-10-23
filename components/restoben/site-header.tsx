@@ -46,6 +46,9 @@ export function SiteHeader() {
             FR
             <ChevronDown className="size-3.5" aria-hidden="true" />
           </button>
+          <a href="/connexion" className="whitespace-nowrap text-sm font-medium text-cream/90 transition-colors hover:text-ember">
+            Se connecter
+          </a>
           <a
             href="/inscription"
             className="whitespace-nowrap rounded-md bg-ember px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-ember/30 transition-colors hover:bg-ember-deep"
@@ -81,6 +84,9 @@ export function SiteHeader() {
               </li>
             ))}
           </ul>
+          <a href="/connexion" onClick={() => setOpen(false)} className="mt-2 block py-3 text-sm font-medium uppercase tracking-[0.14em] text-cream/90">
+            Se connecter
+          </a>
           <a
             href="/inscription"
             onClick={() => setOpen(false)}
