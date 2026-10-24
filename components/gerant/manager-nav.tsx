@@ -1,17 +1,9 @@
-import { BarChart3, ChefHat, ClipboardList, Flame, House, LayoutGrid, MoreHorizontal, UtensilsCrossed, Wallet } from 'lucide-react'
+import { BarChart3, ChefHat, ClipboardList, Flame, House, LayoutGrid, MoreHorizontal, ScanLine, User, UtensilsCrossed, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { manager, type ManagerView } from '@/lib/gerant-data'
 
 type NavItem = { view: ManagerView; label: string; icon: LucideIcon }
-
-const mobileItems: NavItem[] = [
-  { view: 'accueil', label: 'Accueil', icon: House },
-  { view: 'commandes', label: 'Commandes', icon: ClipboardList },
-  { view: 'cuisine', label: 'Cuisine', icon: ChefHat },
-  { view: 'caisse', label: 'Caisse', icon: Wallet },
-  { view: 'plus', label: 'Plus', icon: MoreHorizontal },
-]
 
 const desktopItems: NavItem[] = [
   { view: 'accueil', label: 'Accueil', icon: House },
@@ -26,39 +18,62 @@ const desktopItems: NavItem[] = [
 
 type NavProps = { current: ManagerView; onNavigate: (view: ManagerView) => void; badges?: Partial<Record<ManagerView, number>> }
 
-export function BottomNav({ current, onNavigate, badges }: NavProps) {
-  const active = mobileItems.some((i) => i.view === current) ? current : 'plus'
+type BottomNavProps = NavProps & { isManager?: boolean; onNewOrder: () => void }
+
+export function BottomNav({ current, onNavigate, badges, isManager = true, onNewOrder }: BottomNavProps) {
+  // Un employé n'a pas accès aux rapports : la cuisine prend leur place.
+  const left: NavItem[] = [
+    { view: 'accueil', label: 'Tableau de bord', icon: House },
+    { view: 'commandes', label: 'Commandes', icon: ClipboardList },
+  ]
+  const right: NavItem[] = [
+    isManager ? { view: 'rapports', label: 'Rapports', icon: BarChart3 } : { view: 'cuisine', label: 'Cuisine', icon: ChefHat },
+    { view: 'plus', label: 'Plus', icon: User },
+  ]
+  const known = [...left, ...right].map((i) => i.view)
+  const active = known.includes(current) ? current : 'plus'
+
+  const renderItem = ({ view, label, icon: Icon }: NavItem) => {
+    const isActive = active === view
+    const badge = badges?.[view]
+    return (
+      <li key={view} className="flex-1">
+        <button
+          type="button"
+          onClick={() => onNavigate(view)}
+          aria-current={isActive ? 'page' : undefined}
+          className={cn(
+            'relative flex w-full flex-col items-center gap-1 rounded-2xl px-1 pb-2 pt-2.5 text-[11px] font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ember/30',
+            isActive ? 'text-ember-deep' : 'text-[#8a7662] hover:text-foreground',
+          )}
+        >
+          <Icon className={cn('size-6', isActive && 'fill-ember-deep/90')} strokeWidth={isActive ? 2 : 1.75} aria-hidden="true" />
+          <span className="text-center">{label}</span>
+          {badge ? (
+            <span className="absolute top-1.5 left-1/2 ml-2 rounded-full bg-ember px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground">{badge}</span>
+          ) : null}
+        </button>
+      </li>
+    )
+  }
+
   return (
-    <nav
-      aria-label="Navigation principale"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
-    >
-      <ul className="mx-auto flex max-w-xl items-stretch justify-between px-2">
-        {mobileItems.map(({ view, label, icon: Icon }) => {
-          const isActive = active === view
-          const badge = badges?.[view]
-          return (
-            <li key={view} className="flex-1">
-              <button
-                type="button"
-                onClick={() => onNavigate(view)}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'relative flex w-full flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ember/30',
-                  isActive ? 'text-ember' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className="size-5" strokeWidth={isActive ? 2.25 : 1.75} aria-hidden="true" />
-                {label}
-                {badge ? (
-                  <span className="absolute top-1.5 left-1/2 ml-2 rounded-full bg-ember px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground">
-                    {badge}
-                  </span>
-                ) : null}
-              </button>
-            </li>
-          )
-        })}
+    <nav aria-label="Navigation principale" className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
+      <ul className="mx-auto flex max-w-xl items-end justify-between rounded-[1.75rem] border border-border bg-card/95 px-2 shadow-[0_-8px_30px_-12px_rgba(74,36,14,0.35)] backdrop-blur">
+        {left.map(renderItem)}
+        <li className="flex flex-1 justify-center">
+          <button
+            type="button"
+            onClick={onNewOrder}
+            className="-mt-6 flex w-full flex-col items-center gap-1 pb-2 text-[11px] font-medium leading-tight text-foreground focus-visible:outline-none"
+          >
+            <span className="inline-flex size-16 items-center justify-center rounded-full bg-gradient-to-b from-ember to-ember-deep text-primary-foreground shadow-lg shadow-ember-deep/40 ring-4 ring-card">
+              <ScanLine className="size-8" strokeWidth={1.75} aria-hidden="true" />
+            </span>
+            <span className="max-w-[4.5rem] text-center">Nouvelle commande</span>
+          </button>
+        </li>
+        {right.map(renderItem)}
       </ul>
     </nav>
   )

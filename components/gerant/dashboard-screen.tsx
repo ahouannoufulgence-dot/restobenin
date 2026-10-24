@@ -1,155 +1,349 @@
-import { Bell, ChefHat, ChevronRight, ClipboardList, LayoutGrid, PackageCheck, Wallet } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { fcfa, manager, type ManagerView, type RestaurantTable } from '@/lib/gerant-data'
-import { tableLabel, type StoreOrder } from '@/lib/orders-store'
-import type { todayStats } from '@/lib/reports'
-import { Panel, ScreenHeader, StatusBadge, Trend, iconButton } from './shared'
+'use client'
 
-function SalesChart({ points }: { points: number[] }) {
-  const max = Math.max(...points, 1)
-  const coords = points.map((p, i) => [(i / Math.max(points.length - 1, 1)) * 300, 100 - (p / max) * 88] as const)
-  const line = coords.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+import { Bell, ChevronRight, ClipboardList, LayoutGrid, ShoppingCart, Star, User, UtensilsCrossed } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { fcfa, type ManagerView, type RestaurantTable } from '@/lib/gerant-data'
+import type { MenuDish } from '@/lib/menu-store'
+import type { OrderStatus } from '@/lib/gerant-data'
+import { isOpen, type StoreOrder } from '@/lib/orders-store'
+import type { todayStats } from '@/lib/reports'
+import { useNow } from '@/lib/use-now'
+import { Panel } from './shared'
+
+/** Montant sans l'unité, pour pouvoir afficher « FCFA » plus petit. */
+const amount = (value: number) => fcfa(value).replace(/ FCFA$/, '')
+
+function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 300 100" preserveAspectRatio="none" className="h-32 w-full" role="img" aria-label="Évolution cumulée des ventes au fil de la journée">
-      <defs>
-        <linearGradient id="sales-fill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="var(--ember)" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="var(--ember)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${line} L300,100 L0,100 Z`} fill="url(#sales-fill)" />
-      <path d={line} fill="none" stroke="var(--ember)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+      {[0, 90, 180, 270].map((deg) => (
+        <path key={deg} transform={`rotate(${deg} 20 20)`} d="M20 19c-5-3-8-8-5-12 2-3 5-3 5 1 0 3-1 6 0 11Z" />
+      ))}
+      <circle cx="20" cy="20" r="2.2" />
     </svg>
   )
 }
 
-function Metric({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+function Dots({ delta, suffix = 'vs hier' }: { delta: number | null; suffix?: string }) {
+  if (delta === null) return <span className="text-xs text-muted-foreground">Pas de comparaison</span>
+  const up = delta >= 0
   return (
-    <Panel className="flex flex-col gap-2 p-3 sm:p-4">
-      <span className="inline-flex size-8 items-center justify-center rounded-lg bg-ember/12 text-ember">
-        <Icon className="size-4" aria-hidden="true" />
+    <span className={cn('inline-flex items-center gap-1 text-sm font-medium', up ? 'text-success' : 'text-destructive')}>
+      <span aria-hidden="true">{up ? '↑' : '↓'}</span>
+      {up ? '+' : '−'}
+      {Math.abs(delta)}% <span className="font-normal text-foreground/70">{suffix}</span>
+    </span>
+  )
+}
+
+function SalesChart({ points }: { points: number[] }) {
+  const W = 300
+  const H = 110
+  const padX = 8
+  const padTop = 12
+  const padBottom = 6
+  const max = Math.max(...points, 1)
+  const data = points.length > 1 ? points : [0, ...points, ...points]
+  const coords = data.map((p, i) => [padX + (i / Math.max(data.length - 1, 1)) * (W - padX * 2), padTop + (1 - p / max) * (H - padTop - padBottom)] as const)
+  // Courbe lissée (Catmull-Rom → Bézier) pour reproduire le tracé arrondi de la maquette.
+  const path = coords
+    .map(([x, y], i) => {
+      if (i === 0) return `M${x.toFixed(1)},${y.toFixed(1)}`
+      const [x0, y0] = coords[i - 2] ?? coords[i - 1]!
+      const [x1, y1] = coords[i - 1]!
+      const [x3, y3] = coords[i + 1] ?? coords[i]!
+      const c1x = x1 + (x - x0) / 6
+      const c1y = y1 + (y - y0) / 6
+      const c2x = x - (x3 - x1) / 6
+      const c2y = y - (y3 - y1) / 6
+      return `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+  const last = coords[coords.length - 1]!
+  const first = coords[0]!
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-full w-full overflow-visible" role="img" aria-label="Évolution cumulée des ventes au fil de la journée">
+      <defs>
+        <linearGradient id="sales-fill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="var(--ember)" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="var(--ember)" stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <path d={`${path} L${last[0]},${H} L${first[0]},${H} Z`} fill="url(#sales-fill)" />
+      <path d={path} stroke="var(--ember-deep)" strokeWidth="2.25" strokeLinejoin="round" strokeLinecap="round" fill="none" />
+      {coords.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="3.4" fill="var(--card)" stroke="var(--ember-deep)" strokeWidth="1.75" />
+      ))}
+    </svg>
+  )
+}
+
+/** Fines vagues décoratives en fond de la carte des ventes. */
+function Waves() {
+  return (
+    <svg className="pointer-events-none absolute inset-0 size-full text-ember/15" viewBox="0 0 400 200" preserveAspectRatio="none" fill="none" stroke="currentColor" strokeWidth="0.8" aria-hidden="true">
+      {Array.from({ length: 9 }, (_, i) => (
+        <path key={i} d={`M0 ${70 + i * 9} C70 ${40 + i * 9} 130 ${110 + i * 7} 210 ${75 + i * 8} S340 ${40 + i * 9} 400 ${70 + i * 7}`} />
+      ))}
+    </svg>
+  )
+}
+
+function Metric({
+  icon: Icon,
+  iconClass,
+  label,
+  children,
+  onOpen,
+}: {
+  icon: LucideIcon
+  iconClass: string
+  label: string
+  children: React.ReactNode
+  onOpen?: () => void
+}) {
+  return (
+    <Panel className="flex flex-col items-stretch gap-2 p-3 text-center sm:p-4">
+      <span className="flex items-center gap-2 text-left">
+        <span className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-full text-primary-foreground', iconClass)}>
+          <Icon className="size-[1.15rem]" aria-hidden="true" />
+        </span>
+        <span className="text-[11px] font-medium leading-tight text-foreground sm:text-sm">{label}</span>
       </span>
-      <span className="text-xs leading-tight text-muted-foreground">{label}</span>
-      <span className="text-lg font-semibold tabular-nums text-foreground sm:text-xl">{value}</span>
+      <div className="flex flex-1 flex-col items-center justify-center gap-0.5">{children}</div>
+      {onOpen && (
+        <button type="button" onClick={onOpen} className="mx-auto inline-flex items-center gap-0.5 rounded-md text-sm font-medium text-ember-deep hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
+          Voir <ChevronRight className="size-4" aria-hidden="true" />
+        </button>
+      )}
     </Panel>
   )
 }
 
-const clock = (ms: number) => new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+function SectionHeader({ id, title, onAll }: { id: string; title: string; onAll: () => void }) {
+  return (
+    <div className="mb-3 flex items-baseline justify-between gap-3">
+      <h2 id={id} className="font-serif text-xl font-semibold sm:text-2xl">
+        {title}
+      </h2>
+      <button type="button" onClick={onAll} className="inline-flex shrink-0 items-center gap-0.5 rounded-md text-sm text-foreground/80 hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
+        Tout voir <ChevronRight className="size-4" aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
+
+const pill: Partial<Record<OrderStatus, string>> = {
+  en_attente: 'En attente',
+  en_cours: 'En cours',
+  pret: 'Prêt',
+}
+
+const rowInfo: Partial<Record<OrderStatus, { label: string; className: string; to: ManagerView }>> = {
+  en_attente: { label: 'Encaissement', className: 'text-ember-deep', to: 'caisse' },
+  en_cours: { label: 'En cuisine', className: 'text-foreground/75', to: 'cuisine' },
+  pret: { label: 'À récupérer', className: 'text-foreground/75', to: 'commandes' },
+}
+
+function ago(now: number, then: number) {
+  const min = Math.max(0, Math.floor((now - then) / 60_000))
+  if (min < 1) return 'À l’instant'
+  if (min < 60) return `Il y a ${min} min`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return `Il y a ${h} h${m ? ` ${String(m).padStart(2, '0')}` : ''}`
+}
+
+const tableText = (table: string) => (/^\d+$/.test(table) ? `Table ${table.padStart(2, '0')}` : table)
+
+function Thumb({ src, className }: { src?: string; className?: string }) {
+  return src ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" className={cn('object-cover', className)} />
+  ) : (
+    <span className={cn('flex items-center justify-center bg-sand text-terracotta/60', className)} aria-hidden="true">
+      <UtensilsCrossed className="size-7" />
+    </span>
+  )
+}
 
 export function DashboardScreen({
   orders,
+  dishes,
   tables,
   sales,
-  restaurantName,
+  firstName,
+  canViewReports,
   onNavigate,
 }: {
   orders: StoreOrder[]
+  dishes: MenuDish[]
   tables: RestaurantTable[]
   sales: ReturnType<typeof todayStats>
-  restaurantName: string
+  firstName: string
+  canViewReports: boolean
   onNavigate: (view: ManagerView) => void
 }) {
-  const pending = orders.filter((o) => o.status === 'en_attente')
-  const inProgress = orders.filter((o) => o.status === 'en_cours')
-  const ready = orders.filter((o) => o.status === 'pret')
-  const occupied = tables.filter((t) => t.status === 'occupee').length
-  const active = [...pending, ...inProgress, ...ready]
-  const unpaid = orders.filter((o) => !o.payment && o.status !== 'annulee')
+  const now = useNow()
+  const image = (id: string) => dishes.find((d) => d.id === id)?.image
 
-  const todo: { label: string; count: number; detail: string; icon: LucideIcon; tone: string; to: ManagerView }[] = [
-    { label: 'Nouvelles commandes', count: pending.length, detail: 'en attente', icon: ClipboardList, tone: 'bg-gold/20 text-[#8a5a12]', to: 'commandes' },
-    { label: 'Commandes en cours', count: inProgress.length, detail: 'en cuisine', icon: ChefHat, tone: 'bg-ember/12 text-ember-deep', to: 'cuisine' },
-    { label: 'Prêtes à servir', count: ready.length, detail: 'prêtes', icon: PackageCheck, tone: 'bg-success/15 text-success', to: 'cuisine' },
-    { label: 'À encaisser', count: unpaid.length, detail: 'en attente de paiement', icon: Wallet, tone: 'bg-muted text-foreground', to: 'caisse' },
-  ]
+  const pending = orders.filter((o) => o.status === 'en_attente')
+  const active = orders.filter((o) => o.status === 'en_attente' || o.status === 'en_cours' || o.status === 'pret').filter(isOpen)
+  const toHandle = [...active].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3)
+
+  const occupied = tables.filter((t) => t.status === 'occupee').length
+  const occupancy = tables.length ? Math.round((occupied / tables.length) * 100) : 0
+
+  // Plats les plus commandés aujourd'hui (nombre de commandes qui contiennent le plat).
+  const startOfToday = new Date(now).setHours(0, 0, 0, 0)
+  const counts = new Map<string, { id: string; name: string; orders: number }>()
+  for (const o of orders) {
+    if (o.status === 'annulee' || o.createdAt < startOfToday) continue
+    for (const l of o.lines) {
+      const entry = counts.get(l.id) ?? { id: l.id, name: l.name, orders: 0 }
+      entry.orders += 1
+      counts.set(l.id, entry)
+    }
+  }
+  const popular = [...counts.values()].sort((a, b) => b.orders - a.orders).slice(0, 3)
 
   return (
     <>
-      <ScreenHeader
-        title={`Bonjour, ${manager.firstName}`}
-        subtitle={`${restaurantName} · ${manager.city}`}
-        actions={
-          <button type="button" className={iconButton} aria-label={`Notifications, ${pending.length} nouvelles`} onClick={() => onNavigate('commandes')}>
-            <Bell className="size-5" aria-hidden="true" />
-            {pending.length > 0 && <span className="absolute top-2 right-2.5 size-2 rounded-full bg-ember ring-2 ring-card" />}
-          </button>
-        }
-      />
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="flex flex-col gap-4 lg:col-span-2">
-          <Panel>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Ventes aujourd&apos;hui</p>
-                <p className="mt-1 font-serif text-4xl font-semibold tabular-nums text-foreground">{fcfa(sales.revenue)}</p>
-                <p className="text-xs text-muted-foreground">{sales.count} commande{sales.count > 1 ? 's' : ''} encaissée{sales.count > 1 ? 's' : ''}</p>
-              </div>
-              {sales.change !== null && sales.change >= 0 && <Trend value={sales.change} />}
-              {sales.change !== null && sales.change < 0 && (
-                <span className="inline-flex items-center rounded-full bg-destructive/12 px-2 py-0.5 text-xs font-semibold text-destructive">{sales.change} %</span>
-              )}
-            </div>
-            <div className="mt-4">
-              <SalesChart points={sales.points} />
-              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                <span>08:00</span>
-                <span>Maintenant</span>
-              </div>
-            </div>
-          </Panel>
-
-          <div className="grid grid-cols-3 gap-3">
-            <Metric icon={ClipboardList} label="Commandes en cours" value={String(active.length)} />
-            <Metric icon={LayoutGrid} label="Tables occupées" value={`${occupied}/${tables.length}`} />
-            <Metric icon={Wallet} label="Panier moyen" value={fcfa(sales.average)} />
-          </div>
+      {/* En-tête : marque + notifications (la marque est déjà dans le menu latéral sur grand écran) */}
+      <div className="flex items-center justify-between lg:hidden">
+        <div className="flex items-center gap-2 text-gold">
+          <BrandMark className="size-10" />
+          <span className="flex flex-col leading-none">
+            <span className="font-serif text-3xl font-semibold text-foreground">
+              Resto<span className="text-foreground">Ben</span>
+            </span>
+            <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.35em] text-ember-deep">Manager</span>
+          </span>
         </div>
+        <button type="button" onClick={() => onNavigate('commandes')} aria-label={`Notifications, ${pending.length} nouvelles`} className="relative inline-flex size-11 items-center justify-center rounded-full text-foreground hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
+          <Bell className="size-7" strokeWidth={1.6} aria-hidden="true" />
+          {pending.length > 0 && <span className="absolute right-2 top-2 size-2.5 rounded-full bg-ember-deep ring-2 ring-background" />}
+        </button>
+      </div>
 
-        <section aria-labelledby="todo-title" className="flex flex-col gap-4">
-          <Panel>
-            <h2 id="todo-title" className="font-serif text-xl font-semibold">
-              À traiter maintenant
-            </h2>
-            <ul className="mt-3 divide-y divide-border">
-              {todo.map(({ label, count, detail, icon: Icon, tone, to }) => (
-                <li key={label}>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate(to)}
-                    className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/25"
-                  >
-                    <span className={`inline-flex size-9 items-center justify-center rounded-lg ${tone}`}>
-                      <Icon className="size-4" aria-hidden="true" />
-                    </span>
-                    <span className="flex-1">
-                      <span className="block text-sm font-semibold">{label}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {count} {detail}
+      <header className="mt-4 lg:mt-0">
+        <h1 className="font-serif text-4xl font-semibold leading-tight text-foreground sm:text-5xl">Bonjour, {firstName}</h1>
+        <p className="mt-1 text-muted-foreground">Gérez votre restaurant, inspirez votre équipe.</p>
+      </header>
+
+      {/* Ventes du jour */}
+      <section aria-labelledby="sales-title" className="relative mt-4 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)] sm:p-5">
+        <Waves />
+        <div className="relative min-h-[8.75rem] sm:min-h-[10rem]">
+          <h2 id="sales-title" className="text-sm font-medium text-foreground">
+            Ventes aujourd’hui
+          </h2>
+          <p className="mt-2 font-serif text-[2.6rem] font-semibold leading-none tabular-nums text-foreground sm:text-6xl">
+            {amount(sales.revenue)} <span className="text-2xl font-medium sm:text-3xl">FCFA</span>
+          </p>
+          <p className="mt-3">
+            <Dots delta={sales.change} />
+          </p>
+          <div className="pointer-events-none absolute bottom-6 right-0 top-8 w-[52%] sm:w-[56%]">
+            <SalesChart points={sales.points} />
+          </div>
+          <p className="absolute bottom-0 right-0 text-sm text-foreground/75">08:00 – 21:00</p>
+        </div>
+      </section>
+
+      {/* Indicateurs */}
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        <Metric icon={ClipboardList} iconClass="bg-ember-deep" label="Commandes en cours" onOpen={() => onNavigate('commandes')}>
+          <span className="font-serif text-5xl font-semibold leading-none tabular-nums">{active.length}</span>
+        </Metric>
+        <Metric icon={LayoutGrid} iconClass="bg-[#b8862f]" label="Tables occupées" onOpen={() => onNavigate('tables')}>
+          <span className="font-serif text-5xl font-semibold leading-none tabular-nums">
+            {occupied}
+            <span className="text-2xl text-foreground/70">/{tables.length}</span>
+          </span>
+          <span className="text-xs text-foreground/75">{occupancy}% d’occupation</span>
+        </Metric>
+        <Metric icon={ShoppingCart} iconClass="bg-ember-deep" label="Panier moyen" onOpen={canViewReports ? () => onNavigate('rapports') : undefined}>
+          <span className="font-serif text-3xl font-semibold leading-none tabular-nums sm:text-4xl">
+            {amount(sales.average)} <span className="text-base font-medium sm:text-xl">FCFA</span>
+          </span>
+          <span className="text-xs">
+            <Dots delta={sales.averageChange} />
+          </span>
+        </Metric>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.25fr_1fr] lg:items-start">
+        {/* À traiter maintenant */}
+        <section aria-labelledby="todo-title">
+          <SectionHeader id="todo-title" title="À traiter maintenant" onAll={() => onNavigate('commandes')} />
+          {toHandle.length === 0 ? (
+            <Panel className="text-center text-sm text-muted-foreground">Aucune commande à traiter pour le moment.</Panel>
+          ) : (
+            <ul className="flex flex-col gap-2.5">
+              {toHandle.map((o) => {
+                const info = rowInfo[o.status]!
+                const names = o.lines.map((l) => l.name).slice(0, 2).join(' + ')
+                return (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate(info.to)}
+                      className="flex w-full items-stretch gap-3 overflow-hidden rounded-2xl border border-border bg-card pr-3 text-left shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)] transition-colors hover:border-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+                    >
+                      <Thumb src={image(o.lines[0]?.id ?? '')} className="size-[5.25rem] shrink-0 sm:size-24" />
+                      <span className="flex min-w-0 flex-1 flex-col justify-center gap-1 py-2">
+                        <span className="truncate text-sm font-semibold sm:text-base">
+                          #{o.number} <span className="ml-1">{names}</span>
+                        </span>
+                        <span>
+                          <span className="inline-flex rounded-md bg-ember-deep px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">{pill[o.status]}</span>
+                        </span>
+                        <span className="flex items-center gap-3 text-xs text-foreground/75">
+                          <span>{ago(now, o.createdAt)}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <User className="size-3.5" aria-hidden="true" />
+                            {tableText(o.table)}
+                          </span>
+                        </span>
                       </span>
-                    </span>
-                    <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
+                      <span className="flex shrink-0 flex-col items-end justify-center text-right">
+                        <span className="text-sm font-semibold tabular-nums sm:text-base">{fcfa(o.total)}</span>
+                        <span className={cn('text-sm', info.className)}>{info.label}</span>
+                      </span>
+                      <ChevronRight className="my-auto size-5 shrink-0 text-foreground/70" aria-hidden="true" />
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
-          </Panel>
+          )}
+        </section>
 
-          <Panel className="hidden lg:block">
-            <h2 className="font-serif text-xl font-semibold">Dernières commandes</h2>
-            <ul className="mt-3 flex flex-col gap-3">
-              {active.sort((a, b) => b.createdAt - a.createdAt).slice(0, 4).map((o) => (
-                <li key={o.id} className="flex items-center justify-between gap-2 text-sm">
-                  <span>
-                    <span className="font-semibold">{tableLabel(o.table)}</span>
-                    <span className="ml-2 text-muted-foreground">{clock(o.createdAt)}</span>
-                  </span>
-                  <StatusBadge status={o.status} />
+        {/* Plats populaires */}
+        <section aria-labelledby="popular-title">
+          <SectionHeader id="popular-title" title="Plats populaires aujourd’hui" onAll={() => onNavigate('menu')} />
+          {popular.length === 0 ? (
+            <Panel className="text-center text-sm text-muted-foreground">Pas encore de commande aujourd’hui.</Panel>
+          ) : (
+            <ul className="grid grid-cols-3 gap-3">
+              {popular.map((d) => (
+                <li key={d.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)]">
+                  <Thumb src={image(d.id)} className="h-20 w-full sm:h-24" />
+                  <div className="p-2.5">
+                    <p className="truncate text-sm font-semibold">{d.name}</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-foreground/80">
+                      <Star className="size-3.5 shrink-0 fill-gold text-gold" aria-hidden="true" />
+                      <span className="truncate">
+                        {d.orders} commande{d.orders > 1 ? 's' : ''}
+                      </span>
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>
-          </Panel>
+          )}
         </section>
       </div>
     </>

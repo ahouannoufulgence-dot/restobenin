@@ -269,7 +269,8 @@ export function todayStats(live: StoreOrder[], includeDemo: boolean, now = new D
   const yesterday = rangeOf('jour', shiftAnchor('jour', now, -1))
   const yOrders = paidOrdersBetween(live, includeDemo, yesterday.start.getTime(), yesterday.end.getTime())
   const t = { revenue: orders.reduce((s, o) => s + o.total, 0), count: orders.length, average: orders.length ? Math.round(orders.reduce((s, o) => s + o.total, 0) / orders.length) : 0 }
-  const y = { revenue: yOrders.reduce((s, o) => s + o.total, 0) }
+  const yRevenue = yOrders.reduce((s, o) => s + o.total, 0)
+  const y = { revenue: yRevenue, average: yOrders.length ? Math.round(yRevenue / yOrders.length) : 0 }
   const hourNow = now.getHours()
   const from = 8
   const cumulative: number[] = []
@@ -278,5 +279,5 @@ export function todayStats(live: StoreOrder[], includeDemo: boolean, now = new D
     sum += orders.filter((o) => new Date(o.payment!.at).getHours() === h).reduce((s, o) => s + o.total, 0)
     cumulative.push(sum)
   }
-  return { ...t, change: change(t.revenue, y.revenue), points: cumulative }
+  return { ...t, change: change(t.revenue, y.revenue), averageChange: change(t.average, y.average), points: cumulative }
 }

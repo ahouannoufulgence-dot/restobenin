@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getSession, type Role } from '@/lib/auth'
 import { useEmployees } from '@/lib/employees-store'
-import { initialTables, stock, type ManagerView, type RestaurantTable, type TableStatus } from '@/lib/gerant-data'
+import { initialTables, manager, stock, type ManagerView, type RestaurantTable, type TableStatus } from '@/lib/gerant-data'
 import { menuActions, useMenu } from '@/lib/menu-store'
 import { isUnpaid, ordersActions, useOrders } from '@/lib/orders-store'
 import { todayStats } from '@/lib/reports'
@@ -31,6 +31,8 @@ export function ManagerApp() {
   const [view, setView] = useState<ManagerView>('accueil')
   const [tables, setTables] = useState<RestaurantTable[]>(initialTables)
   const [role, setRole] = useState<Role | null>(null)
+  const [sessionName, setSessionName] = useState<string | null>(null)
+  const [startSale, setStartSale] = useState(false)
 
   // Données partagées entre tous les modules (et avec l'espace client).
   const orders = useOrders()
@@ -38,7 +40,13 @@ export function ManagerApp() {
   const settings = useSettings()
   const employees = useEmployees()
 
-  useEffect(() => setRole(getSession()?.role ?? null), [])
+  useEffect(() => {
+    const session = getSession()
+    setRole(session?.role ?? null)
+    setSessionName(session?.name ?? null)
+  }, [])
+  // Un employé voit son propre prénom ; sans session (démo), c'est le gérant du restaurant.
+  const firstName = role === 'employe' && sessionName ? sessionName.split(' ')[0]! : manager.firstName
   const isManager = role !== 'employe'
 
   const sales = useMemo(() => todayStats(orders, settings.demoData), [orders, settings.demoData])
@@ -46,6 +54,7 @@ export function ManagerApp() {
   function navigate(next: ManagerView) {
     if (!isManager && managerOnlyViews.includes(next)) return
     setStarted(true)
+    setStartSale(false)
     setView(next)
     window.scrollTo({ top: 0 })
   }
@@ -57,6 +66,12 @@ export function ManagerApp() {
   // Une table est « occupée » tant qu'elle a une commande non encaissée.
   const openTables = new Set(orders.filter(isUnpaid).map((o) => o.table))
   const tablesView: RestaurantTable[] = tables.map((t) => (openTables.has(tableNumber(t.id)) ? { ...t, status: 'occupee' } : t))
+
+  // Bouton central « Nouvelle commande » : ouvre directement la vente au comptoir.
+  const newOrder = () => {
+    navigate('caisse')
+    setStartSale(true)
+  }
 
   const cycleTable = (id: string) => {
     if (openTables.has(tableNumber(id))) return
@@ -75,12 +90,12 @@ export function ManagerApp() {
   return (
     <div className="min-h-dvh bg-background lg:flex">
       <Sidebar current={navCurrent} onNavigate={navigate} badges={badges} restaurantName={settings.restaurantName} hidden={isManager ? [] : ['rapports']} />
-      <main className="flex-1 pb-28 lg:pb-12">
+      <main className="flex-1 pb-36 lg:pb-12">
         <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">
-          {view === 'accueil' && <DashboardScreen orders={orders} tables={tablesView} sales={sales} restaurantName={settings.restaurantName} onNavigate={navigate} />}
+          {view === 'accueil' && <DashboardScreen orders={orders} dishes={dishes} tables={tablesView} sales={sales} firstName={firstName} canViewReports={isManager} onNavigate={navigate} />}
           {view === 'commandes' && <OrdersScreen orders={orders} onUpdate={ordersActions.setStatus} />}
           {view === 'cuisine' && <KitchenScreen orders={orders} dishes={dishes} onUpdate={ordersActions.setStatus} onToggleDish={menuActions.toggle} />}
-          {view === 'caisse' && <CashierScreen orders={orders} dishes={dishes} settings={settings} />}
+          {view === 'caisse' && <CashierScreen orders={orders} dishes={dishes} settings={settings} startWithSale={startSale} />}
           {view === 'tables' && <TablesScreen tables={tablesView} onCycle={cycleTable} onAdd={addTable} />}
           {view === 'menu' && <MenuScreen dishes={dishes} onToggle={menuActions.toggle} onSave={menuActions.save} onRemove={menuActions.remove} newId={menuActions.newId} />}
           {view === 'rapports' && isManager && <ReportsScreen orders={orders} settings={settings} tableCount={tablesView.length} pending={badges.commandes} onNavigate={navigate} />}
@@ -89,7 +104,7 @@ export function ManagerApp() {
           {(view === 'parametres' || view === 'qr') && isManager && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
         </div>
       </main>
-      <BottomNav current={navCurrent} onNavigate={navigate} badges={badges} />
+      <BottomNav current={navCurrent} onNavigate={navigate} badges={badges} isManager={isManager} onNewOrder={newOrder} />
     </div>
   )
 }

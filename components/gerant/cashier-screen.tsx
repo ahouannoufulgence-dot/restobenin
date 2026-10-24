@@ -115,14 +115,14 @@ function SaleDialog({ dishes, onCreate, onClose }: { dishes: MenuDish[]; onCreat
   )
 }
 
-export function CashierScreen({ orders, dishes, settings }: { orders: StoreOrder[]; dishes: MenuDish[]; settings: Settings }) {
+export function CashierScreen({ orders, dishes, settings, startWithSale = false }: { orders: StoreOrder[]; dishes: MenuDish[]; settings: Settings; startWithSale?: boolean }) {
   const [tab, setTab] = useState<'due' | 'paid'>('due')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [method, setMethod] = useState<PayMethod>('especes')
   const [received, setReceived] = useState('')
   const [error, setError] = useState('')
   const [receipt, setReceipt] = useState<StoreOrder | null>(null)
-  const [sale, setSale] = useState(false)
+  const [sale, setSale] = useState(startWithSale)
 
   const due = orders.filter(isUnpaid).sort((a, b) => a.createdAt - b.createdAt)
   const paidToday = orders.filter((o) => o.payment && isToday(o.payment.at)).sort((a, b) => b.payment!.at - a.payment!.at)
