@@ -83,7 +83,7 @@ export function ManagerApp() {
           {view === 'caisse' && <CashierScreen orders={orders} dishes={dishes} settings={settings} />}
           {view === 'tables' && <TablesScreen tables={tablesView} onCycle={cycleTable} onAdd={addTable} />}
           {view === 'menu' && <MenuScreen dishes={dishes} onToggle={menuActions.toggle} onSave={menuActions.save} onRemove={menuActions.remove} newId={menuActions.newId} />}
-          {view === 'rapports' && isManager && <ReportsScreen orders={orders} settings={settings} />}
+          {view === 'rapports' && isManager && <ReportsScreen orders={orders} settings={settings} tableCount={tablesView.length} pending={badges.commandes} onNavigate={navigate} />}
           {view === 'plus' && <MoreScreen onNavigate={navigate} isManager={isManager} />}
           {view === 'employes' && isManager && <EmployeesScreen employees={employees} />}
           {(view === 'parametres' || view === 'qr') && isManager && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}

@@ -58,6 +58,11 @@ export function ClientApp({ table }: { table: string }) {
     }
   }, [table])
 
+  // L'avis du client est enregistré sur sa commande : il alimente la satisfaction des rapports.
+  const submitReview = (rating: number, comment: string) => {
+    if (orderId) ordersActions.review(orderId, rating, comment)
+  }
+
   function go(next: View) {
     setView(next)
     window.scrollTo({ top: 0 })
@@ -104,7 +109,7 @@ export function ClientApp({ table }: { table: string }) {
         <div className="min-h-dvh bg-background">
           <ConfirmedScreen order={order} onTrack={() => go('suivi')} onReview={() => setReviewOpen(true)} onMenu={() => go('menu')} />
         </div>
-        {reviewOpen && <ReviewSheet onClose={() => setReviewOpen(false)} />}
+        {reviewOpen && <ReviewSheet onClose={() => setReviewOpen(false)} onSubmit={submitReview} />}
       </>
     )
   }
@@ -162,7 +167,7 @@ export function ClientApp({ table }: { table: string }) {
         {view === 'suivi' && <TrackingScreen order={order} onMenu={() => go('menu')} onReview={() => setReviewOpen(true)} onBack={() => go('menu')} />}
       </div>
       {!dish && <BottomNav current={tab} onNavigate={navigate} cartCount={cartCount} hasOrder={orderActive} />}
-      {reviewOpen && <ReviewSheet onClose={() => setReviewOpen(false)} />}
+      {reviewOpen && <ReviewSheet onClose={() => setReviewOpen(false)} onSubmit={submitReview} />}
     </div>
   )
 }

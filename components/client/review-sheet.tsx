@@ -3,7 +3,7 @@ import { Check, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { emberAction, outlineAction } from './ui'
 
-export function ReviewSheet({ onClose }: { onClose: () => void }) {
+export function ReviewSheet({ onClose, onSubmit }: { onClose: () => void; onSubmit?: (rating: number, comment: string) => void }) {
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
   const [sent, setSent] = useState(false)
@@ -55,7 +55,10 @@ export function ReviewSheet({ onClose }: { onClose: () => void }) {
               className="mt-1.5 w-full resize-none rounded-xl border border-input bg-card p-3 text-sm outline-none focus-visible:border-ember focus-visible:ring-3 focus-visible:ring-ember/25"
             />
             <div className="mt-4 flex flex-col gap-3">
-              <button type="button" disabled={rating === 0} onClick={() => setSent(true)} className={`${emberAction} disabled:pointer-events-none disabled:opacity-50`}>
+              <button type="button" disabled={rating === 0} onClick={() => {
+                  onSubmit?.(rating, comment)
+                  setSent(true)
+                }} className={`${emberAction} disabled:pointer-events-none disabled:opacity-50`}>
                 Envoyer mon avis
               </button>
               <button type="button" onClick={onClose} className={outlineAction}>

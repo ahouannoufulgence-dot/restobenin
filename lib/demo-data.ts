@@ -76,6 +76,29 @@ export function demoOrdersForDay(dayStart: number): StoreOrder[] {
     const total = subtotal + serviceFee
     const method = methodFor(rand)
     const received = method === 'especes' ? Math.ceil(total / 1000) * 1000 : total
+    const ready = 8 + Math.floor(rand() * 14) // minutes avant que la commande soit prête
+    const served = ready + 2 + Math.floor(rand() * 4)
+    const cancelled = rand() < 0.035
+    const rated = rand() < 0.32
+    const stars = rand()
+    const rating = stars < 0.72 ? 5 : stars < 0.93 ? 4 : stars < 0.98 ? 3 : stars < 0.995 ? 2 : 1
+    if (cancelled) {
+      out.push({
+        id: `demo-${dayIndex}-${i}`,
+        number: String(i + 1).padStart(4, '0'),
+        table: String(1 + Math.floor(rand() * 12)),
+        lines,
+        subtotal,
+        serviceFee,
+        total,
+        status: 'annulee',
+        createdAt,
+        times: { annulee: createdAt + 3 * 60_000 },
+        source: 'client',
+        demo: true,
+      })
+      continue
+    }
     out.push({
       id: `demo-${dayIndex}-${i}`,
       number: String(i + 1).padStart(4, '0'),
@@ -86,8 +109,9 @@ export function demoOrdersForDay(dayStart: number): StoreOrder[] {
       total,
       status: 'terminee',
       createdAt,
-      times: { en_cours: createdAt + 2 * 60_000, pret: createdAt + 15 * 60_000, terminee: createdAt + 20 * 60_000 },
-      payment: { at: createdAt + 35 * 60_000, method, received, change: received - total },
+      times: { en_cours: createdAt + 2 * 60_000, pret: createdAt + ready * 60_000, terminee: createdAt + served * 60_000 },
+      payment: { at: createdAt + (served + 20) * 60_000, method, received, change: received - total },
+      review: rated ? { rating, comment: '', at: createdAt + (served + 25) * 60_000 } : undefined,
       source: 'client',
       demo: true,
     })
@@ -95,7 +119,7 @@ export function demoOrdersForDay(dayStart: number): StoreOrder[] {
   return out
 }
 
-/** Commandes fictives dont le paiement tombe dans [startMs, endMs[ — uniquement les jours passés (avant aujourd'hui). */
+/** Commandes fictives (encaissées ou annulées) dont la date de paiement ou d'annulation tombe dans [startMs, endMs[ — jours passés uniquement. */
 export function demoOrdersBetween(startMs: number, endMs: number): StoreOrder[] {
   const todayStart = startOfDay(Date.now())
   const first = Math.max(startOfDay(startMs), todayStart - DEMO_DAYS * DAY_MS)
@@ -103,7 +127,8 @@ export function demoOrdersBetween(startMs: number, endMs: number): StoreOrder[] 
   const out: StoreOrder[] = []
   for (let day = first; day < last; ) {
     for (const o of demoOrdersForDay(day)) {
-      if (o.payment && o.payment.at >= startMs && o.payment.at < endMs) out.push(o)
+      const at = o.payment?.at ?? o.times.annulee ?? o.createdAt
+      if (at >= startMs && at < endMs) out.push(o)
     }
     const next = new Date(day)
     next.setDate(next.getDate() + 1)

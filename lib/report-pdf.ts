@@ -62,7 +62,7 @@ export async function exportReportPdf(report: Report, restaurantName: string, de
     { label: 'Chiffre d’affaires', value: fcfa(report.revenue), delta: change(report.revenue, report.previous?.revenue) },
     { label: 'Commandes', value: String(report.count), delta: change(report.count, report.previous?.count) },
     { label: 'Panier moyen', value: fcfa(report.average), delta: change(report.average, report.previous?.average) },
-    { label: 'Plats vendus', value: String(report.itemsSold), delta: null },
+    { label: 'Satisfaction clients', value: report.satisfaction ? `${report.satisfaction.average.toFixed(1).replace('.', ',')} / 5` : '—', delta: null },
   ]
   const cw = (W - 2 * M - 9) / 4
   kpis.forEach((k, i) => {
@@ -110,9 +110,6 @@ export async function exportReportPdf(report: Report, restaurantName: string, de
   })
   y += chartH + 12
 
-  // détail de la série
-  heading('Détail des ventes')
-  const rows = report.series.filter((s) => s.value > 0)
   const drawRow = (a: string, b: string, bold = false, shade = false) => {
     ensure(7)
     if (shade) doc.setFillColor(250, 245, 239).rect(M, y - 4.5, W - 2 * M, 6.5, 'F')
@@ -121,8 +118,32 @@ export async function exportReportPdf(report: Report, restaurantName: string, de
     doc.text(b, W - M - 2, y, { align: 'right' })
     y += 6.5
   }
+
+  // top performances
+  heading('Top performances')
+  drawRow('Top plat', report.topDish ? `${report.topDish.name} · ${report.topDish.qty} vendus` : '—', false, true)
+  drawRow('Meilleure table', report.bestTable ? `Table ${report.bestTable.table} · ${fcfa(report.bestTable.revenue)}` : '—')
+  drawRow('Plats vendus', String(report.itemsSold), false, true)
+  y += 6
+
+  // indicateurs clés
+  const prev = report.previous
+  const pts = (cur: number | null, before: number | null | undefined, dec = 0) => {
+    if (cur === null || before === null || before === undefined) return ''
+    const d = Math.round((cur - before) * 10 ** dec) / 10 ** dec
+    return `  (${d > 0 ? '+' : ''}${String(d).replace('.', ',')} pt vs préc.)`
+  }
+  heading('Indicateurs clés')
+  drawRow('Taux d’occupation des tables', report.occupancy === null ? '—' : `${report.occupancy} %${pts(report.occupancy, prev?.occupancy)}`, false, true)
+  drawRow('Temps moyen de service', report.serviceMin === null ? '—' : `${report.serviceMin} min`)
+  drawRow('Taux d’annulation', report.cancelRate === null ? '—' : `${String(report.cancelRate).replace('.', ',')} %${pts(report.cancelRate, prev?.cancelRate, 1)}`, false, true)
+  y += 6
+
+  // détail de la série
+  heading('Détail des ventes')
+  const rows = report.series.filter((s) => s.value > 0)
   if (rows.length === 0) drawRow('Aucune vente sur cette période.', '')
-  rows.forEach((s, i) => drawRow(report.period === 'mois' ? `Jour ${s.label}` : s.label, fcfa(s.value), false, i % 2 === 0))
+  rows.forEach((s, i) => drawRow(s.full, fcfa(s.value), false, i % 2 === 0))
   drawRow('Total', fcfa(report.revenue), true)
   y += 6
 

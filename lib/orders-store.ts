@@ -18,6 +18,9 @@ export const payMethodLabels: Record<PayMethod, string> = {
 
 export type Payment = { at: number; method: PayMethod; received: number; change: number }
 
+/** Avis laissé par le client à la fin du repas. */
+export type OrderReview = { rating: number; comment: string; at: number }
+
 export type StoreOrder = {
   id: string
   number: string
@@ -31,6 +34,7 @@ export type StoreOrder = {
   createdAt: number
   times: { en_cours?: number; pret?: number; terminee?: number; annulee?: number }
   payment?: Payment
+  review?: OrderReview
   source: 'client' | 'comptoir'
   /** Donnée fictive de démonstration. */
   demo?: boolean
@@ -85,7 +89,7 @@ function makeSeed(now: number): StoreOrder[] {
       payment: paid ? { at: createdAt + 30 * MIN, method: paid, received: paid === 'especes' ? Math.ceil(total / 1000) * 1000 : total, change: paid === 'especes' ? Math.ceil(total / 1000) * 1000 - total : 0 } : undefined,
     }
   }
-  return [
+  const orders = [
     mk('1012', '12', 5, 'en_cours', [['d-yassa', 2], ['d-bissap', 2]]),
     mk('1005', '5', 8, 'en_attente', [['d-riz', 1], ['d-gingembre', 1]]),
     mk('1003', '3', 16, 'pret', [['d-mafe', 3], ['d-tiramisu', 1]]),
@@ -98,6 +102,8 @@ function makeSeed(now: number): StoreOrder[] {
     mk('0990', '7', 125, 'terminee', [['d-mafe', 4], ['d-yassa', 1], ['d-bissap', 1]], 'mobile_money'),
     mk('0987', '6', 150, 'annulee', [['d-yassa', 1]]),
   ]
+  const reviewed: Record<string, number> = { '0995': 5, '0990': 4 }
+  return orders.map((o) => (reviewed[o.number] ? { ...o, review: { rating: reviewed[o.number], comment: '', at: o.createdAt + 40 * MIN } } : o))
 }
 
 // ---------- stockage ----------
@@ -218,6 +224,12 @@ export const ordersActions = {
     }
     const paid = { ...order, payment }
     return commit(list.map((o) => (o.id === id ? paid : o))) ? paid : null
+  },
+
+  /** Enregistre l'avis du client sur sa commande (note de 1 à 5). */
+  review(id: string, rating: number, comment: string) {
+    const value = Math.min(5, Math.max(1, Math.round(rating)))
+    return commit(getSnapshot().map((o) => (o.id === id ? { ...o, review: { rating: value, comment: comment.trim(), at: Date.now() } } : o)))
   },
 
   /** Supprime les commandes fictives de démonstration. */

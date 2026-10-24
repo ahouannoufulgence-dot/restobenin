@@ -43,12 +43,30 @@ export function periodTitle(period: Period, start: Date, end: Date): string {
   return `Année ${start.getFullYear()}`
 }
 
+/** Titre compact affiché dans le sélecteur de période : « 20 mai – 26 mai 2024 ». */
+export function periodShortTitle(period: Period, start: Date, end: Date): string {
+  if (period !== 'semaine') return periodTitle(period, start, end).replace(/^Année /, '')
+  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 1)
+  const a = start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+  const b = last.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  return `${a} – ${b}`
+}
+
 export const isCurrentPeriod = (period: Period, anchor: Date, now = new Date()) => rangeOf(period, anchor).start.getTime() === rangeOf(period, now).start.getTime()
 
-/** Commandes encaissées dans [startMs, endMs[ : vraies commandes + historique fictif si demandé. */
+/** Commandes encaissées et annulées dans [startMs, endMs[ : vraies commandes + historique fictif si demandé. */
+export function ordersBetween(live: StoreOrder[], includeDemo: boolean, startMs: number, endMs: number): { paid: StoreOrder[]; cancelled: StoreOrder[] } {
+  const pool = [...(includeDemo ? demoOrdersBetween(startMs, endMs) : []), ...live.filter((o) => includeDemo || !o.demo)]
+  const inRange = (t: number) => t >= startMs && t < endMs
+  return {
+    paid: pool.filter((o) => o.payment && inRange(o.payment.at)),
+    cancelled: pool.filter((o) => o.status === 'annulee' && inRange(o.times.annulee ?? o.createdAt)),
+  }
+}
+
+/** Commandes encaissées dans [startMs, endMs[ . */
 export function paidOrdersBetween(live: StoreOrder[], includeDemo: boolean, startMs: number, endMs: number): StoreOrder[] {
-  const real = live.filter((o) => o.payment && o.payment.at >= startMs && o.payment.at < endMs && (includeDemo || !o.demo))
-  return includeDemo ? [...demoOrdersBetween(startMs, endMs), ...real] : real
+  return ordersBetween(live, includeDemo, startMs, endMs).paid
 }
 
 export type Report = {
@@ -60,11 +78,21 @@ export type Report = {
   count: number
   average: number
   itemsSold: number
-  previous: { revenue: number; count: number; average: number } | null
+  shortTitle: string
+  previous: Pick<Metrics, 'revenue' | 'count' | 'average' | 'occupancy' | 'serviceMin' | 'cancelRate'> | null
+  satisfaction: { average: number; count: number } | null
+  /** Temps moyen entre la commande et le service à table, en minutes. */
+  serviceMin: number | null
+  /** Part des commandes annulées, en %. */
+  cancelRate: number | null
+  /** Part moyenne des tables servies au moins une fois par jour, en %. */
+  occupancy: number | null
+  topDish: { name: string; qty: number } | null
+  bestTable: { table: string; revenue: number } | null
   /** true si la période est en cours : la comparaison porte sur la même durée écoulée de la période précédente. */
   partial: boolean
   seriesTitle: string
-  series: { label: string; value: number }[]
+  series: { label: string; full: string; value: number }[]
   topDishes: { name: string; qty: number; revenue: number }[]
   byMethod: { method: PayMethod; label: string; total: number; count: number }[]
   peak: { label: string; value: number } | null
@@ -73,26 +101,69 @@ export type Report = {
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 
-function totals(orders: StoreOrder[]) {
-  const revenue = orders.reduce((s, o) => s + o.total, 0)
-  return { revenue, count: orders.length, average: orders.length ? Math.round(revenue / orders.length) : 0 }
+type Metrics = {
+  revenue: number
+  count: number
+  average: number
+  satisfaction: { average: number; count: number } | null
+  serviceMin: number | null
+  cancelRate: number | null
+  occupancy: number | null
 }
 
-export function buildReport(live: StoreOrder[], includeDemo: boolean, period: Period, anchor: Date): Report {
+const DAY_MS = 86_400_000
+
+function metricsOf(paid: StoreOrder[], cancelled: StoreOrder[], startMs: number, endMs: number, tableCount: number): Metrics {
+  const revenue = paid.reduce((s, o) => s + o.total, 0)
+  const rated = paid.filter((o) => o.review)
+  const served = paid.filter((o) => o.times.terminee !== undefined)
+  const total = paid.length + cancelled.length
+
+  // Part moyenne des tables servies au moins une fois par jour.
+  let occupancy: number | null = null
+  if (paid.length > 0 && tableCount > 0) {
+    const days = Math.max(1, Math.ceil((Math.min(endMs, Date.now()) - startMs) / DAY_MS))
+    const perDay = new Map<string, Set<string>>()
+    for (const o of paid) {
+      if (!/^\d+$/.test(o.table)) continue
+      const key = new Date(o.payment!.at).toDateString()
+      const set = perDay.get(key) ?? new Set<string>()
+      set.add(o.table)
+      perDay.set(key, set)
+    }
+    let sum = 0
+    perDay.forEach((set) => (sum += Math.min(1, set.size / tableCount)))
+    occupancy = Math.round((sum / days) * 100)
+  }
+
+  return {
+    revenue,
+    count: paid.length,
+    average: paid.length ? Math.round(revenue / paid.length) : 0,
+    satisfaction: rated.length ? { average: rated.reduce((s, o) => s + o.review!.rating, 0) / rated.length, count: rated.length } : null,
+    serviceMin: served.length ? Math.round(served.reduce((s, o) => s + (o.times.terminee! - o.createdAt), 0) / served.length / 60_000) : null,
+    cancelRate: total > 0 ? Math.round((cancelled.length / total) * 1000) / 10 : null,
+    occupancy,
+  }
+}
+
+export function buildReport(live: StoreOrder[], includeDemo: boolean, period: Period, anchor: Date, tableCount = 12): Report {
   const { start, end } = rangeOf(period, anchor)
-  const orders = paidOrdersBetween(live, includeDemo, start.getTime(), end.getTime())
+  const cur = ordersBetween(live, includeDemo, start.getTime(), end.getTime())
+  const orders = cur.paid
   const prevAnchor = shiftAnchor(period, anchor, -1)
   const prevRange = rangeOf(period, prevAnchor)
   // Période en cours : on compare avec le même laps de temps écoulé de la période précédente.
   const nowMs = Date.now()
   const partial = nowMs > start.getTime() && nowMs < end.getTime()
   const prevEnd = partial ? Math.min(prevRange.end.getTime(), prevRange.start.getTime() + (nowMs - start.getTime())) : prevRange.end.getTime()
-  const prev = totals(paidOrdersBetween(live, includeDemo, prevRange.start.getTime(), prevEnd))
-  const now = totals(orders)
+  const prevOrders = ordersBetween(live, includeDemo, prevRange.start.getTime(), prevEnd)
+  const prev = metricsOf(prevOrders.paid, prevOrders.cancelled, prevRange.start.getTime(), prevEnd, tableCount)
+  const now = metricsOf(orders, cur.cancelled, start.getTime(), end.getTime(), tableCount)
 
   // série
   let seriesTitle = ''
-  let series: { label: string; value: number }[] = []
+  let series: { label: string; full: string; value: number }[] = []
   const hours = new Array(24).fill(0) as number[]
   for (const o of orders) hours[new Date(o.payment!.at).getHours()] += o.total
 
@@ -101,26 +172,26 @@ export function buildReport(live: StoreOrder[], includeDemo: boolean, period: Pe
     const nonZero = hours.map((v, h) => (v > 0 ? h : -1)).filter((h) => h >= 0)
     const from = Math.min(10, nonZero[0] ?? 10)
     const to = Math.max(22, nonZero[nonZero.length - 1] ?? 22)
-    series = Array.from({ length: to - from + 1 }, (_, i) => ({ label: `${from + i}h`, value: hours[from + i] }))
+    series = Array.from({ length: to - from + 1 }, (_, i) => ({ label: `${from + i}h`, full: `${from + i}h`, value: hours[from + i] }))
   } else if (period === 'semaine') {
     seriesTitle = 'Ventes par jour'
     const values = new Array(7).fill(0) as number[]
     for (const o of orders) values[(new Date(o.payment!.at).getDay() + 6) % 7] += o.total
     series = values.map((value, i) => {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
-      return { label: `${DAYS[i]} ${d.getDate()}`, value }
+      return { label: DAYS[i], full: `${DAYS[i]} ${d.getDate()}`, value }
     })
   } else if (period === 'mois') {
     seriesTitle = 'Ventes par jour'
     const days = Math.round((end.getTime() - start.getTime()) / 86_400_000)
     const values = new Array(days).fill(0) as number[]
     for (const o of orders) values[new Date(o.payment!.at).getDate() - 1] += o.total
-    series = values.map((value, i) => ({ label: String(i + 1), value }))
+    series = values.map((value, i) => ({ label: String(i + 1), full: `Jour ${i + 1}`, value }))
   } else {
     seriesTitle = 'Ventes par mois'
     const values = new Array(12).fill(0) as number[]
     for (const o of orders) values[new Date(o.payment!.at).getMonth()] += o.total
-    series = values.map((value, i) => ({ label: MONTHS[i], value }))
+    series = values.map((value, i) => ({ label: MONTHS[i], full: MONTHS[i], value }))
   }
 
   // plats
@@ -136,6 +207,10 @@ export function buildReport(live: StoreOrder[], includeDemo: boolean, period: Pe
     }
   }
   const topDishes = [...dishMap.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 8)
+  const bestSeller = [...dishMap.values()].sort((a, b) => b.qty - a.qty)[0]
+  const tableMap = new Map<string, number>()
+  for (const o of orders) if (/^\d+$/.test(o.table)) tableMap.set(o.table, (tableMap.get(o.table) ?? 0) + o.total)
+  const bestTableEntry = [...tableMap.entries()].sort((a, b) => b[1] - a[1])[0]
 
   // paiements
   const methods: PayMethod[] = ['especes', 'mobile_money', 'carte']
@@ -153,7 +228,16 @@ export function buildReport(live: StoreOrder[], includeDemo: boolean, period: Pe
     title: periodTitle(period, start, end),
     start: start.getTime(),
     end: end.getTime(),
-    ...now,
+    shortTitle: periodShortTitle(period, start, end),
+    revenue: now.revenue,
+    count: now.count,
+    average: now.average,
+    satisfaction: now.satisfaction,
+    serviceMin: now.serviceMin,
+    cancelRate: now.cancelRate,
+    occupancy: now.occupancy,
+    topDish: bestSeller ? { name: bestSeller.name, qty: bestSeller.qty } : null,
+    bestTable: bestTableEntry ? { table: bestTableEntry[0], revenue: bestTableEntry[1] } : null,
     itemsSold,
     previous: prev.count > 0 ? prev : null,
     partial,
@@ -166,6 +250,13 @@ export function buildReport(live: StoreOrder[], includeDemo: boolean, period: Pe
 }
 
 /** Variation en % entre deux valeurs, ou null s'il n'y a pas de base de comparaison. */
+/** Écart en points entre deux taux (ex. 3,2 % contre 4,3 % : -1,1). */
+export function pointsDiff(current: number | null, previous: number | null | undefined, decimals = 0): number | null {
+  if (current === null || previous === null || previous === undefined) return null
+  const f = 10 ** decimals
+  return Math.round((current - previous) * f) / f
+}
+
 export function change(current: number, previous: number | undefined): number | null {
   if (previous === undefined || previous <= 0) return null
   return Math.round(((current - previous) / previous) * 100)
@@ -177,8 +268,8 @@ export function todayStats(live: StoreOrder[], includeDemo: boolean, now = new D
   const orders = paidOrdersBetween(live, includeDemo, today.start.getTime(), today.end.getTime())
   const yesterday = rangeOf('jour', shiftAnchor('jour', now, -1))
   const yOrders = paidOrdersBetween(live, includeDemo, yesterday.start.getTime(), yesterday.end.getTime())
-  const t = totals(orders)
-  const y = totals(yOrders)
+  const t = { revenue: orders.reduce((s, o) => s + o.total, 0), count: orders.length, average: orders.length ? Math.round(orders.reduce((s, o) => s + o.total, 0) / orders.length) : 0 }
+  const y = { revenue: yOrders.reduce((s, o) => s + o.total, 0) }
   const hourNow = now.getHours()
   const from = 8
   const cumulative: number[] = []
