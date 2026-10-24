@@ -177,7 +177,8 @@ export const ordersActions = {
   create(input: { table: string; lines: OrderLine[]; source: 'client' | 'comptoir' }): StoreOrder | null {
     const list = getSnapshot()
     const subtotal = input.lines.reduce((s, l) => s + l.price * l.qty, 0)
-    const serviceFee = input.source === 'client' ? SERVICE_FEE : 0
+    // Frais de service : commandes à table (client ou serveur). Pas de frais pour une vente au comptoir.
+    const serviceFee = input.source === 'client' || /^\d+$/.test(input.table) ? SERVICE_FEE : 0
     const number = nextNumber(list)
     const order: StoreOrder = {
       id: `c-${number}`,

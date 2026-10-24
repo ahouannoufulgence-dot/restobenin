@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import Link from 'next/link'
-import { BarChart3, ChevronRight, CircleHelp, CreditCard, LayoutGrid, LogOut, Package, QrCode, Settings, Store, UtensilsCrossed, Users } from 'lucide-react'
+import { BarChart3, ChefHat, ChevronRight, CircleHelp, CreditCard, LayoutGrid, LogOut, Package, QrCode, Settings, Store, UtensilsCrossed, Users, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/auth'
@@ -12,6 +12,8 @@ import { Panel, ScreenHeader } from './shared'
 type Module = { label: string; description: string; icon: LucideIcon; badge?: string; action?: 'stock' | ManagerView; managerOnly?: boolean }
 
 const modules: Module[] = [
+  { label: 'Cuisine', description: 'Commandes à préparer et ruptures', icon: ChefHat, action: 'cuisine' },
+  { label: 'Caisse', description: 'Encaissement et reçus', icon: Wallet, action: 'caisse' },
   { label: 'Rapports', description: 'Ventes par jour, semaine, mois, année + export PDF', icon: BarChart3, action: 'rapports', managerOnly: true },
   { label: 'Tables', description: 'Plan de salle et occupation', icon: LayoutGrid, action: 'tables' },
   { label: 'Menu', description: 'Plats, prix et photos', icon: UtensilsCrossed, action: 'menu' },

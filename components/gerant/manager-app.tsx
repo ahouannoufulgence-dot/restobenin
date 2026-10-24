@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getSession, type Role } from '@/lib/auth'
 import { useEmployees } from '@/lib/employees-store'
-import { initialTables, stock, type ManagerView, type RestaurantTable, type TableStatus } from '@/lib/gerant-data'
+import { initialTables, manager, stock, type ManagerView, type RestaurantTable, type TableStatus } from '@/lib/gerant-data'
 import { menuActions, useMenu } from '@/lib/menu-store'
 import { isUnpaid, ordersActions, useOrders } from '@/lib/orders-store'
-import { todayStats } from '@/lib/reports'
+import { popularToday, todayStats } from '@/lib/reports'
 import { tableNumber, useSettings } from '@/lib/settings-store'
 import { WelcomeScreen } from './welcome-screen'
 import { BottomNav, Sidebar } from './manager-nav'
@@ -20,6 +20,7 @@ import { ReportsScreen } from './reports-screen'
 import { MoreScreen } from './more-screen'
 import { SettingsScreen } from './settings-screen'
 import { EmployeesScreen } from './employees-screen'
+import { NewOrderDialog } from './new-order-dialog'
 
 // Vues réservées au gérant (un employé connecté via l'onglet « Employé » ne les voit pas).
 const managerOnlyViews: ManagerView[] = ['rapports', 'employes', 'parametres', 'qr']
@@ -31,6 +32,8 @@ export function ManagerApp() {
   const [view, setView] = useState<ManagerView>('accueil')
   const [tables, setTables] = useState<RestaurantTable[]>(initialTables)
   const [role, setRole] = useState<Role | null>(null)
+  const [userName, setUserName] = useState<string | null>(null)
+  const [newOrderOpen, setNewOrderOpen] = useState(false)
 
   // Données partagées entre tous les modules (et avec l'espace client).
   const orders = useOrders()
@@ -38,10 +41,15 @@ export function ManagerApp() {
   const settings = useSettings()
   const employees = useEmployees()
 
-  useEffect(() => setRole(getSession()?.role ?? null), [])
+  useEffect(() => {
+    const session = getSession()
+    setRole(session?.role ?? null)
+    setUserName(session?.name ?? null)
+  }, [])
   const isManager = role !== 'employe'
 
   const sales = useMemo(() => todayStats(orders, settings.demoData), [orders, settings.demoData])
+  const popular = useMemo(() => popularToday(orders, settings.demoData), [orders, settings.demoData])
 
   function navigate(next: ManagerView) {
     if (!isManager && managerOnlyViews.includes(next)) return
@@ -77,7 +85,7 @@ export function ManagerApp() {
       <Sidebar current={navCurrent} onNavigate={navigate} badges={badges} restaurantName={settings.restaurantName} hidden={isManager ? [] : ['rapports']} />
       <main className="flex-1 pb-28 lg:pb-12">
         <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">
-          {view === 'accueil' && <DashboardScreen orders={orders} tables={tablesView} sales={sales} restaurantName={settings.restaurantName} onNavigate={navigate} />}
+          {view === 'accueil' && <DashboardScreen orders={orders} dishes={dishes} tables={tablesView} sales={sales} popular={popular} firstName={userName?.split(' ')[0] || manager.firstName} pending={badges.commandes} onNavigate={navigate} />}
           {view === 'commandes' && <OrdersScreen orders={orders} onUpdate={ordersActions.setStatus} />}
           {view === 'cuisine' && <KitchenScreen orders={orders} dishes={dishes} onUpdate={ordersActions.setStatus} onToggleDish={menuActions.toggle} />}
           {view === 'caisse' && <CashierScreen orders={orders} dishes={dishes} settings={settings} />}
@@ -89,7 +97,20 @@ export function ManagerApp() {
           {(view === 'parametres' || view === 'qr') && isManager && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
         </div>
       </main>
-      <BottomNav current={navCurrent} onNavigate={navigate} badges={badges} />
+      <BottomNav current={navCurrent} onNavigate={navigate} badges={badges} isManager={isManager} onNewOrder={() => setNewOrderOpen(true)} />
+      {newOrderOpen && (
+        <NewOrderDialog
+          dishes={dishes}
+          tables={tablesView.map((t) => tableNumber(t.id))}
+          onClose={() => setNewOrderOpen(false)}
+          onCreate={(table, lines) => {
+            if (ordersActions.create({ table, lines, source: 'comptoir' })) {
+              setNewOrderOpen(false)
+              navigate('commandes')
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

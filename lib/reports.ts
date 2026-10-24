@@ -262,21 +262,65 @@ export function change(current: number, previous: number | undefined): number | 
   return Math.round(((current - previous) / previous) * 100)
 }
 
+export const DAY_START_HOUR = 8
+export const DAY_END_HOUR = 21
+
 /** Chiffres du jour pour le tableau de bord. */
 export function todayStats(live: StoreOrder[], includeDemo: boolean, now = new Date()) {
   const today = rangeOf('jour', now)
   const orders = paidOrdersBetween(live, includeDemo, today.start.getTime(), today.end.getTime())
+  // Comparaison « vs hier » à la même heure : on ne compare pas une journée en cours à une journée entière.
   const yesterday = rangeOf('jour', shiftAnchor('jour', now, -1))
-  const yOrders = paidOrdersBetween(live, includeDemo, yesterday.start.getTime(), yesterday.end.getTime())
-  const t = { revenue: orders.reduce((s, o) => s + o.total, 0), count: orders.length, average: orders.length ? Math.round(orders.reduce((s, o) => s + o.total, 0) / orders.length) : 0 }
-  const y = { revenue: yOrders.reduce((s, o) => s + o.total, 0) }
+  const elapsed = Math.min(now.getTime() - today.start.getTime(), yesterday.end.getTime() - yesterday.start.getTime())
+  const yOrders = paidOrdersBetween(live, includeDemo, yesterday.start.getTime(), yesterday.start.getTime() + elapsed)
+  const sum = (list: StoreOrder[]) => list.reduce((s, o) => s + o.total, 0)
+  const revenue = sum(orders)
+  const yRevenue = sum(yOrders)
+  const average = orders.length ? Math.round(revenue / orders.length) : 0
+  const yAverage = yOrders.length ? Math.round(sum(yOrders) / yOrders.length) : 0
+
+  // Ventes cumulées heure par heure, de 8 h à 21 h (vide pour les heures à venir).
   const hourNow = now.getHours()
-  const from = 8
-  const cumulative: number[] = []
-  let sum = 0
-  for (let h = from; h <= Math.max(hourNow, from + 3); h++) {
-    sum += orders.filter((o) => new Date(o.payment!.at).getHours() === h).reduce((s, o) => s + o.total, 0)
-    cumulative.push(sum)
+  const hourly: (number | null)[] = []
+  let running = 0
+  for (let h = DAY_START_HOUR; h <= DAY_END_HOUR; h++) {
+    if (h > hourNow) {
+      hourly.push(null)
+      continue
+    }
+    running += orders.filter((o) => new Date(o.payment!.at).getHours() === h).reduce((s, o) => s + o.total, 0)
+    hourly.push(running)
   }
-  return { ...t, change: change(t.revenue, y.revenue), points: cumulative }
+  // Les ventes hors horaires (avant 8 h) sont comptées dès le premier point.
+  const early = orders.filter((o) => new Date(o.payment!.at).getHours() < DAY_START_HOUR).reduce((s, o) => s + o.total, 0)
+  if (early > 0) for (let i = 0; i < hourly.length; i++) if (hourly[i] !== null) hourly[i] = (hourly[i] as number) + early
+
+  return {
+    revenue,
+    count: orders.length,
+    average,
+    change: change(revenue, yRevenue),
+    averageChange: change(average, yAverage),
+    hourly,
+  }
+}
+
+/** Plats les plus commandés aujourd'hui (nombre de commandes qui les contiennent). */
+export function popularToday(live: StoreOrder[], includeDemo: boolean, limit = 3, now = new Date()): { id: string; name: string; count: number }[] {
+  const today = rangeOf('jour', now)
+  const startMs = today.start.getTime()
+  const endMs = today.end.getTime()
+  const pool = [
+    ...live.filter((o) => (includeDemo || !o.demo) && o.status !== 'annulee' && o.createdAt >= startMs && o.createdAt < endMs),
+    ...(includeDemo ? demoOrdersBetween(startMs, endMs).filter((o) => o.status !== 'annulee') : []),
+  ]
+  const counts = new Map<string, { id: string; name: string; count: number }>()
+  for (const o of pool) {
+    for (const l of o.lines) {
+      const cur = counts.get(l.id) ?? { id: l.id, name: l.name, count: 0 }
+      cur.count += 1
+      counts.set(l.id, cur)
+    }
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, limit)
 }

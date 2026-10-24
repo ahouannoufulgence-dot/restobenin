@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDown,
   ArrowUp,
-  Bell,
   CalendarDays,
   Check,
   ChevronLeft,
@@ -14,7 +13,6 @@ import {
   FileText,
   Flame,
   Info,
-  Menu,
   ChartPie,
   Armchair,
   ShoppingBag,
@@ -28,6 +26,7 @@ import { fcfa, type ManagerView } from '@/lib/gerant-data'
 import { ordersActions, type StoreOrder } from '@/lib/orders-store'
 import { buildReport, change, isCurrentPeriod, periodLabels, pointsDiff, shiftAnchor, type Period } from '@/lib/reports'
 import { saveSettings, type Settings } from '@/lib/settings-store'
+import { MobileTopBar } from './mobile-top-bar'
 import { Panel } from './shared'
 
 const periods = Object.keys(periodLabels) as Period[]
@@ -223,23 +222,7 @@ export function ReportsScreen({
 
   return (
     <>
-      {/* Barre du haut (mobile) */}
-      <div className="mb-5 flex items-center justify-between lg:hidden">
-        <button type="button" onClick={() => onNavigate('plus')} aria-label="Ouvrir les modules" className="inline-flex size-10 items-center justify-center rounded-full text-foreground hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
-          <Menu className="size-6" aria-hidden="true" />
-        </button>
-        <div className="flex items-center gap-2 text-ember-deep">
-          <Flame className="size-8 fill-ember/30 text-ember" strokeWidth={1.6} aria-hidden="true" />
-          <span className="flex flex-col leading-none">
-            <span className="font-serif text-2xl font-semibold">RestoBen</span>
-            <span className="mt-0.5 text-center text-[9px] font-medium uppercase tracking-[0.3em]">Manager</span>
-          </span>
-        </div>
-        <button type="button" onClick={() => onNavigate('commandes')} aria-label={pending > 0 ? `${pending} nouvelle${pending > 1 ? 's' : ''} commande${pending > 1 ? 's' : ''}` : 'Notifications'} className="relative inline-flex size-10 items-center justify-center rounded-full text-foreground hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
-          <Bell className="size-6" aria-hidden="true" />
-          {pending > 0 && <span className="absolute right-2 top-2 size-2.5 rounded-full bg-ember ring-2 ring-background" />}
-        </button>
-      </div>
+      <MobileTopBar pending={pending} onNavigate={onNavigate} withMenu />
 
       {/* Titre + période */}
       <header className="flex items-start justify-between gap-3">

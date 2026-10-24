@@ -119,16 +119,17 @@ export function demoOrdersForDay(dayStart: number): StoreOrder[] {
   return out
 }
 
-/** Commandes fictives (encaissées ou annulées) dont la date de paiement ou d'annulation tombe dans [startMs, endMs[ — jours passés uniquement. */
+/** Commandes fictives (encaissées ou annulées) dont la date de paiement ou d'annulation tombe dans [startMs, endMs[ et n'est pas dans le futur. */
 export function demoOrdersBetween(startMs: number, endMs: number): StoreOrder[] {
-  const todayStart = startOfDay(Date.now())
+  const nowMs = Date.now()
+  const todayStart = startOfDay(nowMs)
   const first = Math.max(startOfDay(startMs), todayStart - DEMO_DAYS * DAY_MS)
-  const last = Math.min(endMs, todayStart)
+  const last = Math.min(endMs, todayStart + DAY_MS)
   const out: StoreOrder[] = []
   for (let day = first; day < last; ) {
     for (const o of demoOrdersForDay(day)) {
       const at = o.payment?.at ?? o.times.annulee ?? o.createdAt
-      if (at >= startMs && at < endMs) out.push(o)
+      if (at >= startMs && at < endMs && at <= nowMs) out.push(o)
     }
     const next = new Date(day)
     next.setDate(next.getDate() + 1)

@@ -1,20 +1,21 @@
-import { BarChart3, ChefHat, ClipboardList, Flame, House, LayoutGrid, MoreHorizontal, UtensilsCrossed, Wallet } from 'lucide-react'
+import { BarChart3, ChefHat, ClipboardList, Flame, House, LayoutGrid, MoreHorizontal, ScanLine, UtensilsCrossed, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { manager, type ManagerView } from '@/lib/gerant-data'
 
 type NavItem = { view: ManagerView; label: string; icon: LucideIcon }
 
-const mobileItems: NavItem[] = [
-  { view: 'accueil', label: 'Accueil', icon: House },
-  { view: 'commandes', label: 'Commandes', icon: ClipboardList },
-  { view: 'cuisine', label: 'Cuisine', icon: ChefHat },
-  { view: 'caisse', label: 'Caisse', icon: Wallet },
-  { view: 'plus', label: 'Plus', icon: MoreHorizontal },
-]
+const home: NavItem = { view: 'accueil', label: 'Tableau de bord', icon: House }
+const orders: NavItem = { view: 'commandes', label: 'Commandes', icon: ClipboardList }
+const more: NavItem = { view: 'plus', label: 'Plus', icon: MoreHorizontal }
+
+/** Téléphone : deux onglets, le bouton central « Nouvelle commande », puis deux onglets. */
+const mobileLeft: NavItem[] = [home, orders]
+const mobileRightManager: NavItem[] = [{ view: 'rapports', label: 'Rapports', icon: BarChart3 }, more]
+const mobileRightStaff: NavItem[] = [{ view: 'cuisine', label: 'Cuisine', icon: ChefHat }, more]
 
 const desktopItems: NavItem[] = [
-  { view: 'accueil', label: 'Accueil', icon: House },
+  { view: 'accueil', label: 'Tableau de bord', icon: House },
   { view: 'commandes', label: 'Commandes', icon: ClipboardList },
   { view: 'cuisine', label: 'Cuisine', icon: ChefHat },
   { view: 'caisse', label: 'Caisse', icon: Wallet },
@@ -26,39 +27,52 @@ const desktopItems: NavItem[] = [
 
 type NavProps = { current: ManagerView; onNavigate: (view: ManagerView) => void; badges?: Partial<Record<ManagerView, number>> }
 
-export function BottomNav({ current, onNavigate, badges }: NavProps) {
-  const active = mobileItems.some((i) => i.view === current) ? current : 'plus'
+export function BottomNav({ current, onNavigate, badges, isManager = true, onNewOrder }: NavProps & { isManager?: boolean; onNewOrder: () => void }) {
+  const right = isManager ? mobileRightManager : mobileRightStaff
+  const items = [...mobileLeft, ...right]
+  const active = items.some((i) => i.view === current) ? current : 'plus'
+
+  const tab = ({ view, label, icon: Icon }: NavItem) => {
+    const isActive = active === view
+    const badge = badges?.[view]
+    return (
+      <li key={view} className="flex-1">
+        <button
+          type="button"
+          onClick={() => onNavigate(view)}
+          aria-current={isActive ? 'page' : undefined}
+          className={cn(
+            'relative flex w-full flex-col items-center justify-end gap-1 px-0.5 pb-2 pt-2.5 text-center text-[10px] font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ember/30',
+            isActive ? 'text-ember-deep' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <Icon className="size-6" strokeWidth={isActive ? 2.25 : 1.6} aria-hidden="true" />
+          {label}
+          {badge ? (
+            <span className="absolute top-1.5 left-1/2 ml-2 rounded-full bg-ember px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground">{badge}</span>
+          ) : null}
+        </button>
+      </li>
+    )
+  }
+
   return (
-    <nav
-      aria-label="Navigation principale"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
-    >
-      <ul className="mx-auto flex max-w-xl items-stretch justify-between px-2">
-        {mobileItems.map(({ view, label, icon: Icon }) => {
-          const isActive = active === view
-          const badge = badges?.[view]
-          return (
-            <li key={view} className="flex-1">
-              <button
-                type="button"
-                onClick={() => onNavigate(view)}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'relative flex w-full flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ember/30',
-                  isActive ? 'text-ember' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className="size-5" strokeWidth={isActive ? 2.25 : 1.75} aria-hidden="true" />
-                {label}
-                {badge ? (
-                  <span className="absolute top-1.5 left-1/2 ml-2 rounded-full bg-ember px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground">
-                    {badge}
-                  </span>
-                ) : null}
-              </button>
-            </li>
-          )
-        })}
+    <nav aria-label="Navigation principale" className="fixed inset-x-2 bottom-2 z-30 rounded-3xl border border-border bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_-12px_rgba(74,36,14,0.35)] backdrop-blur lg:hidden">
+      <ul className="mx-auto flex max-w-xl items-end justify-between px-1">
+        {mobileLeft.map(tab)}
+        <li className="flex-1">
+          <button
+            type="button"
+            onClick={onNewOrder}
+            className="flex w-full flex-col items-center gap-1 px-0.5 pb-2 text-center text-[10px] font-medium leading-tight text-foreground focus-visible:outline-none"
+          >
+            <span className="-mt-6 inline-flex size-14 items-center justify-center rounded-full bg-ember-deep text-white shadow-lg shadow-ember-deep/40 ring-4 ring-card transition-transform active:scale-95">
+              <ScanLine className="size-7" strokeWidth={1.8} aria-hidden="true" />
+            </span>
+            Nouvelle commande
+          </button>
+        </li>
+        {right.map(tab)}
       </ul>
     </nav>
   )

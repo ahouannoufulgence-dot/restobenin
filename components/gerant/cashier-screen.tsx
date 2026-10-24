@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Banknote, Check, CreditCard, Plus, Printer, ReceiptText, Smartphone, X } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { Banknote, Check, CreditCard, Plus, Printer, ReceiptText, Smartphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fcfa } from '@/lib/gerant-data'
 import { isUnpaid, ordersActions, payMethodLabels, tableLabel, type PayMethod, type StoreOrder } from '@/lib/orders-store'
 import type { MenuDish } from '@/lib/menu-store'
 import { receiptHtml } from '@/lib/receipt'
 import type { Settings } from '@/lib/settings-store'
-import { QtyStepper } from '@/components/client/ui'
+import { Dialog } from './dialog'
+import { NewOrderDialog } from './new-order-dialog'
 import { Panel, ScreenHeader, StatusBadge, primaryAction } from './shared'
 
 const methods: { id: PayMethod; icon: typeof Banknote }[] = [
@@ -23,27 +24,6 @@ const isToday = (ms: number) => new Date(ms).toDateString() === new Date().toDat
 function quickAmounts(total: number) {
   const up = (step: number) => Math.ceil(total / step) * step
   return [...new Set([total, up(1000), up(5000), up(10000)])].filter((v) => v >= total).slice(0, 4)
-}
-
-function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-espresso/60 md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="max-h-[94dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:rounded-3xl md:p-7">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-serif text-2xl font-semibold">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Fermer" className="inline-flex size-9 items-center justify-center rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
-            <X className="size-5" aria-hidden="true" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  )
 }
 
 function ReceiptDialog({ order, settings, onClose }: { order: StoreOrder; settings: Settings; onClose: () => void }) {
@@ -80,37 +60,6 @@ function ReceiptDialog({ order, settings, onClose }: { order: StoreOrder; settin
         </button>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">Format ticket 80 mm. Dans la fenêtre d’impression, choisissez votre imprimante de reçus (ou « Enregistrer en PDF »).</p>
-    </Dialog>
-  )
-}
-
-function SaleDialog({ dishes, onCreate, onClose }: { dishes: MenuDish[]; onCreate: (lines: { id: string; name: string; qty: number; price: number }[]) => void; onClose: () => void }) {
-  const [qty, setQty] = useState<Record<string, number>>({})
-  const available = dishes.filter((d) => d.available)
-  const chosen = available.filter((d) => (qty[d.id] ?? 0) > 0)
-  const total = chosen.reduce((s, d) => s + d.price * qty[d.id], 0)
-  return (
-    <Dialog title="Nouvelle vente au comptoir" onClose={onClose}>
-      <ul className="divide-y divide-border">
-        {available.map((d) => (
-          <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold">{d.name}</span>
-              <span className="text-xs tabular-nums text-muted-foreground">{fcfa(d.price)}</span>
-            </span>
-            <QtyStepper qty={qty[d.id] ?? 0} onChange={(n) => setQty((q) => ({ ...q, [d.id]: n }))} name={d.name} size="sm" />
-          </li>
-        ))}
-      </ul>
-      <button
-        type="button"
-        disabled={chosen.length === 0}
-        onClick={() => onCreate(chosen.map((d) => ({ id: d.id, name: d.name, qty: qty[d.id], price: d.price })))}
-        className={cn(primaryAction, 'mt-5 w-full disabled:opacity-50')}
-      >
-        {chosen.length === 0 ? 'Choisissez au moins un plat' : `Envoyer en cuisine · ${fcfa(total)}`}
-      </button>
-      <p className="mt-2 text-xs text-muted-foreground">La commande part en cuisine et s’ouvre ensuite ici pour l’encaisser.</p>
     </Dialog>
   )
 }
@@ -320,11 +269,12 @@ export function CashierScreen({ orders, dishes, settings }: { orders: StoreOrder
 
       {receipt && <ReceiptDialog order={receipt} settings={settings} onClose={() => setReceipt(null)} />}
       {sale && (
-        <SaleDialog
+        <NewOrderDialog
           dishes={dishes}
+          tables={[]}
           onClose={() => setSale(false)}
-          onCreate={(lines) => {
-            const created = ordersActions.create({ table: 'Comptoir', lines, source: 'comptoir' })
+          onCreate={(table, lines) => {
+            const created = ordersActions.create({ table, lines, source: 'comptoir' })
             if (created) {
               setTab('due')
               select(created.id)
