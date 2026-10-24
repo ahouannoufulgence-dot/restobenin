@@ -14,7 +14,7 @@ import { Panel } from './shared'
 /** Montant sans l'unité, pour pouvoir afficher « FCFA » plus petit. */
 const amount = (value: number) => fcfa(value).replace(/ FCFA$/, '')
 
-function BrandMark({ className }: { className?: string }) {
+export function BrandMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
       {[0, 90, 180, 270].map((deg) => (

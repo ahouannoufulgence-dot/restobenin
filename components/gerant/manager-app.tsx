@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getSession, type Role } from '@/lib/auth'
 import { useEmployees } from '@/lib/employees-store'
-import { initialTables, manager, stock, type ManagerView, type RestaurantTable, type TableStatus } from '@/lib/gerant-data'
+import { summarize, useStock } from '@/lib/stock-store'
+import { initialTables, manager, type ManagerView, type RestaurantTable, type TableStatus } from '@/lib/gerant-data'
 import { menuActions, useMenu } from '@/lib/menu-store'
 import { isUnpaid, ordersActions, useOrders } from '@/lib/orders-store'
 import { todayStats } from '@/lib/reports'
@@ -20,6 +21,7 @@ import { ReportsScreen } from './reports-screen'
 import { MoreScreen } from './more-screen'
 import { SettingsScreen } from './settings-screen'
 import { EmployeesScreen } from './employees-screen'
+import { StockScreen } from './stock-screen'
 
 // Vues réservées au gérant (un employé connecté via l'onglet « Employé » ne les voit pas).
 const managerOnlyViews: ManagerView[] = ['rapports', 'employes', 'parametres', 'qr']
@@ -39,6 +41,7 @@ export function ManagerApp() {
   const dishes = useMenu()
   const settings = useSettings()
   const employees = useEmployees()
+  const stock = useStock()
 
   useEffect(() => {
     const session = getSession()
@@ -83,9 +86,9 @@ export function ManagerApp() {
     commandes: orders.filter((o) => o.status === 'en_attente').length,
     cuisine: orders.filter((o) => o.status === 'en_attente' || o.status === 'en_cours').length,
     caisse: orders.filter(isUnpaid).length,
-    plus: stock.alerts,
+    plus: summarize(stock.items).critical,
   }
-  const navCurrent = view === 'parametres' || view === 'qr' || view === 'employes' ? 'plus' : view
+  const navCurrent = view === 'parametres' || view === 'qr' || view === 'employes' || view === 'stock' ? 'plus' : view
 
   return (
     <div className="min-h-dvh bg-background lg:flex">
@@ -101,6 +104,7 @@ export function ManagerApp() {
           {view === 'rapports' && isManager && <ReportsScreen orders={orders} settings={settings} tableCount={tablesView.length} pending={badges.commandes} onNavigate={navigate} />}
           {view === 'plus' && <MoreScreen onNavigate={navigate} isManager={isManager} />}
           {view === 'employes' && isManager && <EmployeesScreen employees={employees} />}
+          {view === 'stock' && <StockScreen items={stock.items} movements={stock.movements} />}
           {(view === 'parametres' || view === 'qr') && isManager && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
         </div>
       </main>

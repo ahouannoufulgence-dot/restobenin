@@ -29,7 +29,7 @@ const roleIcons: Record<EmployeeRole, LucideIcon> = {
 }
 
 const fieldClass =
-  'h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none placeholder:text-muted-foreground focus:border-ember focus:ring-3 focus:ring-ember/20'
+  'h-11 w-full rounded-xl border border-border bg-background px-4 text-base outline-none sm:text-sm placeholder:text-muted-foreground focus:border-ember focus:ring-3 focus:ring-ember/20'
 
 const initials = (name: string) =>
   name
