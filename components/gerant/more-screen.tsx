@@ -22,7 +22,7 @@ const modules: Module[] = [
   { label: 'Paramètres restaurant', description: 'Restaurant, reçus, adresse du site, QR codes', icon: Store, action: 'parametres', managerOnly: true },
   { label: 'QR Code', description: 'Gérer les QR codes de table', icon: QrCode, action: 'qr', managerOnly: true },
   { label: 'Abonnement', description: 'Votre formule et facturation', icon: CreditCard, action: 'abonnement', managerOnly: true },
-  { label: 'Aide', description: 'Centre d’aide et tutoriels', icon: CircleHelp },
+  { label: 'Aide & Support', description: 'FAQ, guide de démarrage et contact du support', icon: CircleHelp, action: 'aide' },
 ]
 
 export function MoreScreen({ onNavigate, isManager = true }: { onNavigate: (view: ManagerView) => void; isManager?: boolean }) {

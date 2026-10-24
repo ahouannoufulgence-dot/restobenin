@@ -25,6 +25,7 @@ import { SettingsScreen } from './settings-screen'
 import { EmployeesScreen } from './employees-screen'
 import { StockScreen } from './stock-screen'
 import { AccountScreen } from './account-screen'
+import { HelpScreen } from './help-screen'
 
 // Vues réservées au gérant (un employé connecté via l'onglet « Employé » ne les voit pas).
 const managerOnlyViews: ManagerView[] = ['rapports', 'employes', 'parametres', 'qr', 'abonnement']
@@ -101,7 +102,7 @@ export function ManagerApp() {
     caisse: orders.filter(isUnpaid).length,
     plus: summarize(stock.items).critical,
   }
-  const navCurrent = view === 'parametres' || view === 'qr' || view === 'employes' || view === 'stock' || view === 'abonnement' ? 'plus' : view
+  const navCurrent = view === 'parametres' || view === 'qr' || view === 'employes' || view === 'stock' || view === 'abonnement' || view === 'aide' ? 'plus' : view
 
   return (
     <div className="min-h-dvh bg-background lg:flex">
@@ -120,6 +121,7 @@ export function ManagerApp() {
             <EmployeesScreen employees={employees} limit={account ? teamLimits[account.planId] : null} planName={plan?.name} onOpenPlan={() => navigate('abonnement')} />
           )}
           {view === 'abonnement' && isManager && <AccountScreen account={account} restaurantName={settings.restaurantName} phone={settings.phone} memberCount={employees.length} onNavigate={navigate} />}
+          {view === 'aide' && <HelpScreen isManager={isManager} onNavigate={navigate} />}
           {view === 'stock' && <StockScreen items={stock.items} movements={stock.movements} />}
           {(view === 'parametres' || view === 'qr') && isManager && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
         </div>
