@@ -54,7 +54,7 @@ function StatusPill({ status }: { status: EmployeeStatus }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
+        'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-xs',
         status === 'actif' ? 'bg-success/12 text-success' : 'bg-ember/12 text-ember-deep',
       )}
     >
@@ -67,7 +67,7 @@ function StatusPill({ status }: { status: EmployeeStatus }) {
 function RolePill({ role }: { role: EmployeeRole }) {
   const Icon = roleIcons[role]
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#9a6f2e] px-2.5 py-1 text-xs font-semibold text-cream">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#9a6f2e] px-2.5 py-0.5 text-[11px] font-semibold text-cream sm:py-1 sm:text-xs">
       <Icon className="size-3.5" aria-hidden="true" />
       {roleLabels[role]}
     </span>
@@ -81,14 +81,14 @@ function Stat({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: str
     warn: { box: 'bg-ember/12 text-ember', value: 'text-ember-deep' },
   }[tone]
   return (
-    <Panel className="flex flex-col items-center gap-1 p-3 text-center sm:p-4">
-      <span className="flex items-center gap-2">
-        <span className={cn('inline-flex size-9 items-center justify-center rounded-full', tones.box)}>
+    <Panel className="flex min-w-0 flex-col items-center gap-1 p-2.5 text-center sm:p-4">
+      <span className="flex flex-col items-center gap-1 sm:flex-row sm:gap-2">
+        <span className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-full', tones.box)}>
           <Icon className="size-5" aria-hidden="true" />
         </span>
-        <span className="text-xs font-medium leading-tight text-foreground/85 sm:text-sm">{label}</span>
+        <span className="text-[11px] font-medium leading-tight text-foreground/85 sm:text-sm">{label}</span>
       </span>
-      <span className={cn('font-serif text-4xl font-semibold tabular-nums', tones.value)}>{value}</span>
+      <span className={cn('font-serif text-3xl font-semibold tabular-nums sm:text-4xl', tones.value)}>{value}</span>
     </Panel>
   )
 }
@@ -336,24 +336,33 @@ export function EmployeesScreen({ employees }: { employees: Employee[] }) {
       {visible.length === 0 ? (
         <Panel className="mt-4 text-center text-sm text-muted-foreground">Aucun employé ne correspond à votre recherche.</Panel>
       ) : (
-        <ul className="mt-4 grid gap-3 lg:grid-cols-2">
+        <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-2">
           {visible.map((e) => (
-            <li key={e.id} className="flex items-stretch gap-1 rounded-2xl border border-border bg-card p-3 shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)] sm:p-4">
+            <li key={e.id} className="flex min-w-0 items-stretch gap-1 rounded-2xl border border-border bg-card p-2.5 shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)] sm:p-4">
               <button
                 type="button"
                 onClick={() => setEditing(e)}
                 aria-label={`Modifier ${e.name}`}
                 className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/25"
               >
-                <Avatar employee={e} className="size-16 text-xl sm:size-[4.5rem]" />
+                <Avatar employee={e} className="size-12 text-base min-[400px]:size-14 min-[400px]:text-lg sm:size-[4.5rem] sm:text-xl" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-serif text-xl font-semibold leading-tight">{e.name}</span>
+                  <span className="block truncate font-serif text-lg font-semibold leading-tight sm:text-xl">{e.name}</span>
                   <span className="mt-1 block"><RolePill role={e.role} /></span>
-                  <span className="mt-1.5 flex items-center gap-1.5 text-xs text-foreground/80">
+                  <span className="mt-1.5 flex items-center gap-1.5 text-[11px] text-foreground/80 sm:text-xs">
                     <Phone className="size-3.5 shrink-0" aria-hidden="true" />
-                    <span className="truncate tabular-nums">{e.phone}</span>
+                    <span className="truncate tabular-nums">
+                      {e.phone.startsWith('+229') ? (
+                        <>
+                          <span className="max-[359px]:hidden">+229 </span>
+                          {e.phone.slice(4).trim()}
+                        </>
+                      ) : (
+                        e.phone
+                      )}
+                    </span>
                   </span>
-                  <span className="mt-0.5 flex items-center gap-1.5 text-xs text-foreground/80">
+                  <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-foreground/80 sm:text-xs">
                     <Mail className="size-3.5 shrink-0" aria-hidden="true" />
                     <span className="truncate">{e.email}</span>
                   </span>
@@ -362,16 +371,16 @@ export function EmployeesScreen({ employees }: { employees: Employee[] }) {
 
               <div className="flex shrink-0 flex-col items-end justify-between gap-2">
                 <StatusPill status={e.status} />
-                <div className="flex items-center gap-1">
-                  <a href={`tel:${e.phone.replace(/[^\d+]/g, '')}`} aria-label={`Appeler ${e.name}`} className="inline-flex size-9 items-center justify-center rounded-full text-espresso/80 hover:bg-muted hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
-                    <Phone className="size-5" aria-hidden="true" />
+                <div className="flex items-center">
+                  <a href={`tel:${e.phone.replace(/[^\d+]/g, '')}`} aria-label={`Appeler ${e.name}`} className="inline-flex size-8 items-center justify-center rounded-full text-espresso/80 hover:bg-muted hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 sm:size-9">
+                    <Phone className="size-[1.15rem] sm:size-5" aria-hidden="true" />
                   </a>
-                  <a href={`mailto:${e.email}`} aria-label={`Écrire à ${e.name}`} className="inline-flex size-9 items-center justify-center rounded-full text-espresso/80 hover:bg-muted hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
-                    <Mail className="size-5" aria-hidden="true" />
+                  <a href={`mailto:${e.email}`} aria-label={`Écrire à ${e.name}`} className="inline-flex size-8 items-center justify-center rounded-full text-espresso/80 hover:bg-muted hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 sm:size-9">
+                    <Mail className="size-[1.15rem] sm:size-5" aria-hidden="true" />
                   </a>
                 </div>
               </div>
-              <ChevronRight className="my-auto size-5 shrink-0 text-ember" aria-hidden="true" />
+              <ChevronRight className="my-auto size-4 shrink-0 text-ember sm:size-5" aria-hidden="true" />
             </li>
           ))}
         </ul>

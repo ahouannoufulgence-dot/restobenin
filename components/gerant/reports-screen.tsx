@@ -122,7 +122,7 @@ function BarChart({ series, title }: { series: { label: string; full: string; va
         </div>
         <div className={cn('mt-2 flex', dense ? 'gap-0.5 sm:gap-1.5' : 'gap-2 sm:gap-4')} aria-hidden="true">
           {series.map((s, i) => (
-            <span key={s.full} className={cn('min-w-0 flex-1 truncate text-center text-muted-foreground', dense ? 'text-[10px]' : 'text-xs')}>
+            <span key={s.full} className={cn('min-w-0 flex-1 truncate text-center text-muted-foreground', dense ? 'text-[10px]' : 'text-[10px] min-[380px]:text-xs')}>
               {i % every === 0 ? s.label : ''}
             </span>
           ))}
@@ -308,7 +308,7 @@ export function ReportsScreen({
         </p>
       )}
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
         {/* Colonne principale */}
         <div className="flex flex-col gap-4">
           <section aria-labelledby="ca-title" className={cn(cardClass, 'relative overflow-hidden p-5')}>
@@ -326,11 +326,11 @@ export function ReportsScreen({
             <Waves />
           </section>
 
-          <div className="grid grid-cols-3 gap-3">
-            <section aria-labelledby="k-cmd" className={cn(cardClass, 'p-3')}>
-              <div className="flex items-start gap-1.5">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+            <section aria-labelledby="k-cmd" className={cn(cardClass, 'min-w-0 p-2.5 sm:p-3')}>
+              <div className="flex items-start gap-1.5 max-[359px]:flex-col max-[359px]:items-center max-[359px]:text-center">
                 <FileText className="size-6 shrink-0 text-ember-deep" strokeWidth={1.6} aria-hidden="true" />
-                <h2 id="k-cmd" className="pt-0.5 text-[11px] font-medium leading-tight sm:text-xs">
+                <h2 id="k-cmd" className="min-w-0 pt-0.5 text-[10px] font-medium leading-tight min-[380px]:text-[11px] sm:text-xs">
                   Commandes
                 </h2>
               </div>
@@ -340,10 +340,10 @@ export function ReportsScreen({
               </p>
             </section>
 
-            <section aria-labelledby="k-avg" className={cn(cardClass, 'p-3')}>
-              <div className="flex items-start gap-1.5">
+            <section aria-labelledby="k-avg" className={cn(cardClass, 'min-w-0 p-2.5 sm:p-3')}>
+              <div className="flex items-start gap-1.5 max-[359px]:flex-col max-[359px]:items-center max-[359px]:text-center">
                 <ShoppingBag className="size-6 shrink-0 text-ember-deep" strokeWidth={1.6} aria-hidden="true" />
-                <h2 id="k-avg" className="pt-0.5 text-[11px] font-medium leading-tight sm:text-xs">
+                <h2 id="k-avg" className="min-w-0 pt-0.5 text-[10px] font-medium leading-tight min-[380px]:text-[11px] sm:text-xs">
                   Panier moyen
                 </h2>
               </div>
@@ -352,12 +352,12 @@ export function ReportsScreen({
               </p>
             </section>
 
-            <section aria-labelledby="k-sat" className={cn(cardClass, 'p-3')}>
-              <div className="flex items-start gap-1.5">
+            <section aria-labelledby="k-sat" className={cn(cardClass, 'min-w-0 p-2.5 sm:p-3')}>
+              <div className="flex items-start gap-1.5 max-[359px]:flex-col max-[359px]:items-center max-[359px]:text-center">
                 <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-ember-deep text-white">
                   <Star className="size-3.5 fill-white" aria-hidden="true" />
                 </span>
-                <h2 id="k-sat" className="pt-0.5 text-[11px] font-medium leading-tight sm:text-xs">
+                <h2 id="k-sat" className="min-w-0 pt-0.5 text-[10px] font-medium leading-tight min-[380px]:text-[11px] sm:text-xs">
                   Taux de satisfaction
                 </h2>
               </div>
@@ -396,12 +396,12 @@ export function ReportsScreen({
               Top performances
             </h2>
             <div className="grid grid-cols-2 gap-3">
-              <div className={cn(cardClass, 'p-3.5')}>
+              <div className={cn(cardClass, 'min-w-0 p-3 sm:p-3.5')}>
                 <div className="flex items-center gap-2">
                   <Flame className="size-6 shrink-0 text-ember" strokeWidth={1.6} aria-hidden="true" />
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Top plat</p>
-                    <p className="truncate text-sm font-semibold">{report.topDish ? report.topDish.name : '—'}</p>
+                    <p className="break-words text-[13px] font-semibold leading-tight sm:truncate sm:text-sm">{report.topDish ? report.topDish.name : '—'}</p>
                   </div>
                 </div>
                 <div className="my-2.5 h-px bg-ember/30" />
@@ -414,12 +414,12 @@ export function ReportsScreen({
                 </div>
               </div>
 
-              <div className={cn(cardClass, 'p-3.5')}>
+              <div className={cn(cardClass, 'min-w-0 p-3 sm:p-3.5')}>
                 <div className="flex items-center gap-2">
                   <Crown className="size-6 shrink-0 text-gold" strokeWidth={1.6} aria-hidden="true" />
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Meilleure table</p>
-                    <p className="truncate text-sm font-semibold">{report.bestTable ? `Table ${report.bestTable.table}` : '—'}</p>
+                    <p className="break-words text-[13px] font-semibold leading-tight sm:truncate sm:text-sm">{report.bestTable ? `Table ${report.bestTable.table}` : '—'}</p>
                   </div>
                 </div>
                 <div className="my-2.5 h-px bg-gold/40" />
@@ -427,7 +427,7 @@ export function ReportsScreen({
                   <Users className="size-6 shrink-0 text-gold" strokeWidth={1.6} aria-hidden="true" />
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">CA généré</p>
-                    <p className="truncate text-sm font-semibold tabular-nums leading-tight">{report.bestTable ? fcfa(report.bestTable.revenue) : '—'}</p>
+                    <p className="break-words text-[13px] font-semibold tabular-nums leading-tight sm:truncate sm:text-sm">{report.bestTable ? fcfa(report.bestTable.revenue) : '—'}</p>
                   </div>
                 </div>
               </div>
