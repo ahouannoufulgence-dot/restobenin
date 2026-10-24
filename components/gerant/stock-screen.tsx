@@ -45,6 +45,7 @@ import {
   type StockUnit,
 } from '@/lib/stock-store'
 import { BrandMark } from './dashboard-screen'
+import { Modal } from './shared'
 
 const kindStyle: Record<StockKind, { icon: LucideIcon; tile: string; color: string }> = {
   legume: { icon: Carrot, tile: 'from-[#fbe3d8] to-[#f2b9a3]', color: 'text-[#b3321c]' },
@@ -106,27 +107,6 @@ function LevelPill({ level }: { level: StockLevel }) {
       <span className={cn('size-2 rounded-full', s.dot)} aria-hidden="true" />
       {s.label}
     </span>
-  )
-}
-
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-espresso/60 md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-background p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl md:max-w-lg md:rounded-3xl md:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <h2 className="font-serif text-2xl font-semibold">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Fermer" className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card hover:border-ember hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
-            <X className="size-5" aria-hidden="true" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
   )
 }
 

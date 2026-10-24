@@ -278,8 +278,8 @@ function ContactPage() {
   )
 }
 
-export function HelpScreen({ isManager, onNavigate }: { isManager: boolean; onNavigate: (view: ManagerView) => void }) {
-  const [stack, setStack] = useState<Page[]>([{ name: 'home' }])
+export function HelpScreen({ isManager, onNavigate, initial }: { isManager: boolean; onNavigate: (view: ManagerView) => void; initial?: 'contact' }) {
+  const [stack, setStack] = useState<Page[]>(initial === 'contact' ? [{ name: 'home' }, { name: 'contact' }] : [{ name: 'home' }])
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const page = stack[stack.length - 1]!

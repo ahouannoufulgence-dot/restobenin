@@ -39,6 +39,7 @@ export function ManagerApp() {
   const [role, setRole] = useState<Role | null>(null)
   const [sessionName, setSessionName] = useState<string | null>(null)
   const [startSale, setStartSale] = useState(false)
+  const [helpStart, setHelpStart] = useState(false)
 
   // Données partagées entre tous les modules (et avec l'espace client).
   const orders = useOrders()
@@ -65,6 +66,7 @@ export function ManagerApp() {
     if (!isManager && managerOnlyViews.includes(next)) return
     setStarted(true)
     setStartSale(false)
+    setHelpStart(false)
     setView(next)
     window.scrollTo({ top: 0 })
   }
@@ -88,6 +90,12 @@ export function ManagerApp() {
   const newOrder = () => {
     navigate('caisse')
     setStartSale(true)
+  }
+
+  // « Contactez le support » : ouvre directement le formulaire de contact.
+  const openSupport = () => {
+    navigate('aide')
+    setHelpStart(true)
   }
 
   const cycleTable = (id: string) => {
@@ -120,8 +128,16 @@ export function ManagerApp() {
           {view === 'employes' && isManager && (
             <EmployeesScreen employees={employees} limit={account ? teamLimits[account.planId] : null} planName={plan?.name} onOpenPlan={() => navigate('abonnement')} />
           )}
-          {view === 'abonnement' && isManager && <AccountScreen account={account} restaurantName={settings.restaurantName} phone={settings.phone} memberCount={employees.length} onNavigate={navigate} />}
-          {view === 'aide' && <HelpScreen isManager={isManager} onNavigate={navigate} />}
+          {view === 'abonnement' && isManager && <AccountScreen
+              account={account}
+              restaurantName={settings.restaurantName}
+              phone={settings.phone}
+              memberCount={employees.length}
+              notifications={orders.filter((o) => o.status === 'en_attente').length}
+              onNavigate={navigate}
+              onSupport={openSupport}
+            />}
+          {view === 'aide' && <HelpScreen isManager={isManager} onNavigate={navigate} initial={helpStart ? 'contact' : undefined} />}
           {view === 'stock' && <StockScreen items={stock.items} movements={stock.movements} />}
           {(view === 'parametres' || view === 'qr') && isManager && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
         </div>

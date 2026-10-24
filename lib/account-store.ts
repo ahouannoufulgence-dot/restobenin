@@ -21,6 +21,8 @@ export type Account = {
   /** Mode de paiement choisi (libellé lisible), ex. « MTN Mobile Money ». */
   paymentMethod: string
   createdAt: number
+  /** Date du dernier changement de formule (sinon la date d'inscription). */
+  planChangedAt?: number
 }
 
 const KEY = 'restoben:account:v1'
@@ -103,6 +105,30 @@ export function saveAccount(account: Account): boolean {
   cache = account
   emit()
   return true
+}
+
+/** Met à jour le compte enregistré (formule, mode de paiement…). Renvoie false s'il n'y a pas de compte. */
+export function updateAccount(patch: Partial<Account>): boolean {
+  const current = getAccount()
+  return current ? saveAccount({ ...current, ...patch }) : false
+}
+
+const addPeriod = (from: Date, billing: Account['billing']) => {
+  const d = new Date(from)
+  if (billing === 'annuel') d.setFullYear(d.getFullYear() + 1)
+  else d.setMonth(d.getMonth() + 1)
+  return d
+}
+
+/** Période de facturation en cours : début (dernier paiement) et prochain paiement. */
+export function billingPeriod(account: Pick<Account, 'createdAt' | 'planChangedAt' | 'billing'>, now = Date.now()) {
+  let start = new Date(account.planChangedAt ?? account.createdAt)
+  let next = addPeriod(start, account.billing)
+  for (let guard = 0; next.getTime() <= now && guard < 600; guard += 1) {
+    start = next
+    next = addPeriod(start, account.billing)
+  }
+  return { start: start.getTime(), next: next.getTime() }
 }
 
 /** Vrai si l'identifiant (e-mail ou téléphone) est celui du compte. */

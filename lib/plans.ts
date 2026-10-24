@@ -51,6 +51,22 @@ export const plans: Plan[] = [
   },
 ]
 
+/** Quatre points forts par formule (écran Abonnement). */
+export const planHighlights: Record<PlanId, string[]> = {
+  basique: ['Commandes & paiements', 'Stocks basiques', '5 membres d’équipe', 'Support e-mail'],
+  standard: ['Stocks avancés', '15 membres d’équipe', 'Analytics & performances', 'Support prioritaire'],
+  premium: ['Multi-restaurants', 'Équipe illimitée', 'Analytics prédictives', 'Support dédié 7j/7'],
+}
+
+/** Tableau comparatif des formules : valeurs dans l'ordre Basique, Standard, Premium. */
+export const planComparison: { key: 'equipe' | 'stocks' | 'rapports' | 'support' | 'facturation'; label: string; values: [string, string, string] }[] = [
+  { key: 'equipe', label: 'Équipe', values: ['5 membres', '15 membres', 'Illimitée'] },
+  { key: 'stocks', label: 'Stocks', values: ['Basiques', 'Avancés', 'Avancés'] },
+  { key: 'rapports', label: 'Rapports', values: ['Journaliers', 'Analytics', 'Prédictifs'] },
+  { key: 'support', label: 'Support', values: ['E-mail', 'Prioritaire', 'Dédié 7j/7'] },
+  { key: 'facturation', label: 'Facturation', values: ['Mensuelle ou annuelle', 'Mensuelle ou annuelle', 'Mensuelle ou annuelle'] },
+]
+
 /** Nombre maximal de membres d'équipe selon la formule (null = illimité). */
 export const teamLimits: Record<PlanId, number | null> = { basique: 5, standard: 15, premium: null }
 
