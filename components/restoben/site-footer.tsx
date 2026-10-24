@@ -1,4 +1,4 @@
-import { Mail, MapPin, Phone } from 'lucide-react'
+import { Lock, Mail, MapPin, Phone } from 'lucide-react'
 import { Logo } from './logo'
 
 const columns = [
@@ -93,6 +93,15 @@ export function SiteFooter() {
             <a href="/mentions-legales" className="hover:text-gold">Mentions légales</a>
             <a href="/politique-de-confidentialite" className="hover:text-gold">Politique de confidentialité</a>
             <a href="/conditions-utilisation" className="hover:text-gold">Conditions d’utilisation</a>
+            {/* Accès discret à l'espace Super Admin (non référencé). */}
+            <a
+              href="/superadmin/connexion"
+              rel="nofollow"
+              className="inline-flex items-center opacity-30 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            >
+              <Lock className="size-3.5" aria-hidden="true" />
+              <span className="sr-only">Administration</span>
+            </a>
           </div>
         </div>
       </div>
