@@ -1,9 +1,8 @@
 import Image from 'next/image'
 import { ChevronRight, Flame } from 'lucide-react'
-import { manager } from '@/lib/gerant-data'
 import { primaryAction } from './shared'
 
-export function WelcomeScreen({ onStart, onModules }: { onStart: () => void; onModules: () => void }) {
+export function WelcomeScreen({ firstName, subtitle, onStart, onModules }: { firstName: string; subtitle: string; onStart: () => void; onModules: () => void }) {
   return (
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#9a3d16_0%,#6b2610_45%,#3a1407_100%)] text-cream">
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center gap-10 px-6 py-10 lg:flex-row lg:gap-16 lg:py-16">
@@ -20,10 +19,10 @@ export function WelcomeScreen({ onStart, onModules }: { onStart: () => void; onM
 
           <p className="mt-12 text-sm font-medium uppercase tracking-[0.25em] text-gold">Espace gérant</p>
           <h1 className="mt-3 font-serif text-4xl font-semibold leading-tight text-balance sm:text-5xl">
-            Bonjour, {manager.firstName}
+            Bonjour, {firstName}
           </h1>
           <p className="mt-2 font-serif text-2xl text-cream/85">
-            {manager.restaurant} – {manager.city}
+            {subtitle}
           </p>
           <p className="mt-5 max-w-md text-pretty leading-relaxed text-cream/70">
             Votre service du jour vous attend : commandes, tables, carte et performances réunies en un seul endroit.

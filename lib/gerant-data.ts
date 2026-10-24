@@ -8,7 +8,7 @@ export type RestaurantTable = {
   status: TableStatus
 }
 
-export type ManagerView = 'accueil' | 'commandes' | 'cuisine' | 'caisse' | 'tables' | 'menu' | 'rapports' | 'plus' | 'parametres' | 'qr' | 'employes' | 'stock'
+export type ManagerView = 'accueil' | 'commandes' | 'cuisine' | 'caisse' | 'tables' | 'menu' | 'rapports' | 'plus' | 'parametres' | 'qr' | 'employes' | 'stock' | 'abonnement'
 
 export const manager = {
   firstName: 'Jean',

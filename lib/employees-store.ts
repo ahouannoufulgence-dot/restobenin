@@ -155,6 +155,10 @@ export const employeesActions = {
     const exists = list.some((e) => e.id === employee.id)
     return commit(exists ? list.map((e) => (e.id === employee.id ? employee : e)) : [...list, employee])
   },
+  /** Remplace toute l'équipe (utilisé à l'inscription : le responsable devient le premier membre). */
+  replaceAll(list: Employee[]) {
+    return commit(list)
+  },
   remove(id: string) {
     return commit(getSnapshot().filter((e) => e.id !== id))
   },

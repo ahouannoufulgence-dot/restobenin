@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { firstName as firstNameOf, useAccount } from '@/lib/account-store'
+import { getPlan, teamLimits } from '@/lib/plans'
 import { getSession, type Role } from '@/lib/auth'
 import { useEmployees } from '@/lib/employees-store'
 import { summarize, useStock } from '@/lib/stock-store'
@@ -22,9 +24,10 @@ import { MoreScreen } from './more-screen'
 import { SettingsScreen } from './settings-screen'
 import { EmployeesScreen } from './employees-screen'
 import { StockScreen } from './stock-screen'
+import { AccountScreen } from './account-screen'
 
 // Vues réservées au gérant (un employé connecté via l'onglet « Employé » ne les voit pas).
-const managerOnlyViews: ManagerView[] = ['rapports', 'employes', 'parametres', 'qr']
+const managerOnlyViews: ManagerView[] = ['rapports', 'employes', 'parametres', 'qr', 'abonnement']
 
 const nextTableStatus: Record<TableStatus, TableStatus> = { libre: 'occupee', occupee: 'reservee', reservee: 'libre' }
 
@@ -42,15 +45,18 @@ export function ManagerApp() {
   const settings = useSettings()
   const employees = useEmployees()
   const stock = useStock()
+  const account = useAccount()
 
   useEffect(() => {
     const session = getSession()
     setRole(session?.role ?? null)
     setSessionName(session?.name ?? null)
   }, [])
-  // Un employé voit son propre prénom ; sans session (démo), c'est le gérant du restaurant.
-  const firstName = role === 'employe' && sessionName ? sessionName.split(' ')[0]! : manager.firstName
   const isManager = role !== 'employe'
+  // Prénom affiché : celui de la session ; à défaut, le responsable inscrit ; à défaut (démo), le gérant fictif.
+  const firstName = sessionName ? firstNameOf(sessionName) : isManager && account ? firstNameOf(account.manager) : manager.firstName
+  const plan = account ? getPlan(account.planId) : null
+  const establishmentLine = account && plan ? `${account.establishment} · Formule ${plan.name}` : `${manager.city} · Formule Standard`
 
   const sales = useMemo(() => todayStats(orders, settings.demoData), [orders, settings.demoData])
 
@@ -63,7 +69,14 @@ export function ManagerApp() {
   }
 
   if (!started) {
-    return <WelcomeScreen onStart={() => navigate('accueil')} onModules={() => navigate('plus')} />
+    return (
+      <WelcomeScreen
+        firstName={firstName}
+        subtitle={account ? `${settings.restaurantName} – ${account.establishment}` : `${manager.restaurant} – ${manager.city}`}
+        onStart={() => navigate('accueil')}
+        onModules={() => navigate('plus')}
+      />
+    )
   }
 
   // Une table est « occupée » tant qu'elle a une commande non encaissée.
@@ -88,11 +101,11 @@ export function ManagerApp() {
     caisse: orders.filter(isUnpaid).length,
     plus: summarize(stock.items).critical,
   }
-  const navCurrent = view === 'parametres' || view === 'qr' || view === 'employes' || view === 'stock' ? 'plus' : view
+  const navCurrent = view === 'parametres' || view === 'qr' || view === 'employes' || view === 'stock' || view === 'abonnement' ? 'plus' : view
 
   return (
     <div className="min-h-dvh bg-background lg:flex">
-      <Sidebar current={navCurrent} onNavigate={navigate} badges={badges} restaurantName={settings.restaurantName} hidden={isManager ? [] : ['rapports']} />
+      <Sidebar current={navCurrent} onNavigate={navigate} badges={badges} restaurantName={settings.restaurantName} subtitle={establishmentLine} hidden={isManager ? [] : ['rapports']} />
       <main className="flex-1 pb-36 lg:pb-12">
         <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">
           {view === 'accueil' && <DashboardScreen orders={orders} dishes={dishes} tables={tablesView} sales={sales} firstName={firstName} canViewReports={isManager} onNavigate={navigate} />}
@@ -103,7 +116,10 @@ export function ManagerApp() {
           {view === 'menu' && <MenuScreen dishes={dishes} onToggle={menuActions.toggle} onSave={menuActions.save} onRemove={menuActions.remove} newId={menuActions.newId} />}
           {view === 'rapports' && isManager && <ReportsScreen orders={orders} settings={settings} tableCount={tablesView.length} pending={badges.commandes} onNavigate={navigate} />}
           {view === 'plus' && <MoreScreen onNavigate={navigate} isManager={isManager} />}
-          {view === 'employes' && isManager && <EmployeesScreen employees={employees} />}
+          {view === 'employes' && isManager && (
+            <EmployeesScreen employees={employees} limit={account ? teamLimits[account.planId] : null} planName={plan?.name} onOpenPlan={() => navigate('abonnement')} />
+          )}
+          {view === 'abonnement' && isManager && <AccountScreen account={account} restaurantName={settings.restaurantName} phone={settings.phone} memberCount={employees.length} onNavigate={navigate} />}
           {view === 'stock' && <StockScreen items={stock.items} movements={stock.movements} />}
           {(view === 'parametres' || view === 'qr') && isManager && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
         </div>

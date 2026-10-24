@@ -21,7 +21,7 @@ const modules: Module[] = [
   { label: 'Stock', description: 'Gestion avancée des stocks', icon: Package, action: 'stock' },
   { label: 'Paramètres restaurant', description: 'Restaurant, reçus, adresse du site, QR codes', icon: Store, action: 'parametres', managerOnly: true },
   { label: 'QR Code', description: 'Gérer les QR codes de table', icon: QrCode, action: 'qr', managerOnly: true },
-  { label: 'Abonnement', description: 'Votre formule et facturation', icon: CreditCard, managerOnly: true },
+  { label: 'Abonnement', description: 'Votre formule et facturation', icon: CreditCard, action: 'abonnement', managerOnly: true },
   { label: 'Aide', description: 'Centre d’aide et tutoriels', icon: CircleHelp },
 ]
 

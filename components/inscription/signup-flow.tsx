@@ -4,7 +4,8 @@ import { Phone } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { type Billing, type PlanId, getPlan } from '@/lib/plans'
 import { type AccountData, AccountStep } from './account-step'
-import { type PaymentMethodId, PaymentStep } from './payment-step'
+import { completeSignup } from '@/lib/signup-complete'
+import { type PaymentMethodId, PaymentStep, paymentMethodLabels } from './payment-step'
 import { PlanStep } from './plan-step'
 import { SignupHeader } from './signup-header'
 import { SuccessStep } from './success-step'
@@ -71,7 +72,10 @@ export function SignupFlow({ initialPlan }: { initialPlan?: PlanId }) {
               method={method}
               onMethodChange={setMethod}
               onBack={() => goTo(3)}
-              onPaid={() => goTo(5)}
+              onPaid={() => {
+                completeSignup(account, planId, billing, method ? paymentMethodLabels[method] : 'Non précisé')
+                goTo(5)
+              }}
             />
           )}
           {step === 5 && account && <SuccessStep restaurant={account.restaurant} planName={plan.name} email={account.email} />}

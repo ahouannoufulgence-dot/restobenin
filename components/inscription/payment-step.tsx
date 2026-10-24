@@ -9,6 +9,14 @@ import { GlassCard, StepHeading, TextField, ghostButton, primaryButton } from '.
 
 export type PaymentMethodId = 'mtn' | 'moov' | 'celtiis' | 'card' | 'transfer'
 
+export const paymentMethodLabels: Record<PaymentMethodId, string> = {
+  mtn: 'MTN Mobile Money',
+  moov: 'Moov Money',
+  celtiis: 'Celtiis Cash',
+  card: 'Carte bancaire',
+  transfer: 'Virement bancaire',
+}
+
 const methods: { id: PaymentMethodId; label: string; hint: string; icon: LucideIcon; badge?: string; mobile?: boolean }[] = [
   { id: 'mtn', label: 'MTN Mobile Money', hint: 'Validation instantanée sur votre téléphone', icon: Smartphone, badge: 'MTN', mobile: true },
   { id: 'moov', label: 'Moov Money', hint: 'Validation instantanée sur votre téléphone', icon: Smartphone, badge: 'Moov', mobile: true },

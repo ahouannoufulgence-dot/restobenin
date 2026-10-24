@@ -8,6 +8,7 @@
  * Ce n'est PAS une protection : à remplacer par la vraie authentification (ex. Supabase Auth)
  * en ne modifiant que `signIn`, `signOut` et `getSession`.
  */
+import { getAccount, matchesAccount } from '@/lib/account-store'
 import { findEmployee } from '@/lib/employees-store'
 
 export const DEMO_AUTH = true
@@ -38,6 +39,10 @@ export async function signIn(identifier: string, password: string, remember: boo
     if (!employee) return { ok: false, error: 'Identifiant ou mot de passe incorrect.' }
     if (employee.status === 'conge') return { ok: false, error: 'Ce compte est en congé. Contactez votre gérant.' }
     name = employee.name
+  } else {
+    // Si l'identifiant est celui du compte créé à l'inscription, on retrouve le nom du responsable.
+    const account = getAccount()
+    if (account && matchesAccount(account, identifier)) name = account.manager
   }
   const session: Session = {
     identifier: identifier.includes('@') ? identifier.trim().toLowerCase() : identifier.trim(),
@@ -45,8 +50,12 @@ export async function signIn(identifier: string, password: string, remember: boo
     name,
     at: Date.now(),
   }
+  return openSession(session, remember)
+}
+
+/** Enregistre la session. « Se souvenir de moi » : session durable ; sinon elle s'efface à la fermeture du navigateur. */
+export function openSession(session: Session, remember: boolean): SignInResult {
   try {
-    // « Se souvenir de moi » : session durable. Sinon, elle s'efface à la fermeture du navigateur.
     const store = remember ? window.localStorage : window.sessionStorage
     ;(remember ? window.sessionStorage : window.localStorage).removeItem(KEY)
     store.setItem(KEY, JSON.stringify(session))

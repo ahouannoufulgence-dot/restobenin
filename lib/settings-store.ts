@@ -62,6 +62,9 @@ function subscribe(listener: () => void) {
 }
 
 const getSnapshot = () => (cache ??= read())
+
+/** Paramètres actuels, hors composant React. */
+export const getSettings = getSnapshot
 const getServerSnapshot = () => DEFAULTS
 
 export function useSettings(): Settings {

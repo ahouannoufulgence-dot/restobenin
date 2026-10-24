@@ -256,12 +256,14 @@ function EmployeeForm({ employee, all, onClose }: { employee: Employee | null; a
   )
 }
 
-export function EmployeesScreen({ employees }: { employees: Employee[] }) {
+export function EmployeesScreen({ employees, limit = null, planName, onOpenPlan }: { employees: Employee[]; limit?: number | null; planName?: string; onOpenPlan?: () => void }) {
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'tous' | EmployeeStatus>('tous')
   const [editing, setEditing] = useState<Employee | 'new' | null>(null)
+  const [limitReached, setLimitReached] = useState(false)
+  const atLimit = limit !== null && employees.length >= limit
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -386,7 +388,28 @@ export function EmployeesScreen({ employees }: { employees: Employee[] }) {
         </ul>
       )}
 
-      <button type="button" onClick={() => setEditing('new')} className={cn(primaryAction, 'mt-5 h-14 w-full text-base')}>
+      {limit !== null && (
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          Équipe : <span className="font-semibold tabular-nums text-foreground">{employees.length} / {limit}</span> membres{planName ? ` · formule ${planName}` : ''}
+        </p>
+      )}
+
+      {limitReached && atLimit && (
+        <p role="alert" className="mt-3 rounded-xl bg-gold/15 p-3 text-center text-sm text-[#6b4510]">
+          Votre formule{planName ? ` ${planName}` : ''} est limitée à {limit} membres.{' '}
+          {onOpenPlan && (
+            <button type="button" onClick={onOpenPlan} className="font-semibold underline underline-offset-2">
+              Voir mon abonnement
+            </button>
+          )}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => (atLimit ? setLimitReached(true) : setEditing('new'))}
+        className={cn(primaryAction, 'mt-4 h-14 w-full text-base')}
+      >
         <Plus className="size-5" aria-hidden="true" />
         Ajouter un employé
       </button>

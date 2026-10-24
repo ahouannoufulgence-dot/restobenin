@@ -51,6 +51,9 @@ export const plans: Plan[] = [
   },
 ]
 
+/** Nombre maximal de membres d'équipe selon la formule (null = illimité). */
+export const teamLimits: Record<PlanId, number | null> = { basique: 5, standard: 15, premium: null }
+
 export function isPlanId(value: unknown): value is PlanId {
   return plans.some((plan) => plan.id === value)
 }

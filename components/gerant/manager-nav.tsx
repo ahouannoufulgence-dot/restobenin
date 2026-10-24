@@ -86,7 +86,7 @@ export function BottomNav({ current, onNavigate, badges, isManager = true, onNew
   )
 }
 
-export function Sidebar({ current, onNavigate, badges, restaurantName, hidden = [] }: NavProps & { restaurantName: string; hidden?: ManagerView[] }) {
+export function Sidebar({ current, onNavigate, badges, restaurantName, subtitle, hidden = [] }: NavProps & { restaurantName: string; subtitle: string; hidden?: ManagerView[] }) {
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col bg-[linear-gradient(180deg,#7a2e12_0%,#4a1c0b_100%)] px-5 py-7 text-cream lg:flex">
       <a href="/" className="flex items-center gap-2.5 px-2" aria-label="RestoBen, retour au site">
@@ -130,7 +130,7 @@ export function Sidebar({ current, onNavigate, badges, restaurantName, hidden = 
       <div className="mt-auto rounded-xl border border-cream/15 bg-cream/5 p-4">
         <p className="text-xs uppercase tracking-[0.2em] text-cream/50">Établissement</p>
         <p className="mt-1 font-serif text-lg font-semibold">{restaurantName}</p>
-        <p className="text-sm text-cream/70">{manager.city} · Formule Standard</p>
+        <p className="text-sm text-cream/70">{subtitle}</p>
       </div>
     </aside>
   )

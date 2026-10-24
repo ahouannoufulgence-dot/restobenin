@@ -1,6 +1,13 @@
 import Image from 'next/image'
 import { ChevronRight, Flame } from 'lucide-react'
 
+/** « Chez Amina » → « Bienvenue chez Amina » ; « Le Délice » → « Bienvenue chez Le Délice ». */
+function welcomeTitle(name: string) {
+  const n = name.trim()
+  if (/^chez\s/i.test(n)) return `Bienvenue chez ${n.slice(5).trim()}`
+  return `Bienvenue chez ${n}`
+}
+
 export function WelcomeScreen({ restaurantName, table, onStart }: { restaurantName: string; table: string; onStart: () => void }) {
   return (
     <main className="flex min-h-dvh flex-col bg-[radial-gradient(ellipse_at_top,#9a3d16_0%,#6b2610_45%,#3a1407_100%)] px-6 pb-10 pt-14 text-cream lg:justify-center lg:py-16">
@@ -12,7 +19,7 @@ export function WelcomeScreen({ restaurantName, table, onStart }: { restaurantNa
               Resto<span className="text-ember">Ben</span>
             </span>
           </div>
-          <h1 className="mt-10 font-serif text-4xl font-semibold leading-tight text-balance lg:text-6xl">Bienvenue au {restaurantName}</h1>
+          <h1 className="mt-10 font-serif text-4xl font-semibold leading-tight text-balance lg:text-6xl">{welcomeTitle(restaurantName)}</h1>
           <p className="mt-2 text-lg text-cream/80">Table {table}</p>
         </div>
 
