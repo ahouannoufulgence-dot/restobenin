@@ -17,10 +17,10 @@ export function VerifyStep({
 
   return (
     <section aria-labelledby="verify-title" className="mx-auto w-full max-w-xl">
-      <GlassCard className="flex flex-col items-center px-6 py-12 text-center sm:px-12">
+      <GlassCard className="flex flex-col items-center px-5 py-9 text-center sm:px-12 sm:py-12">
         <div className="relative">
           <span className="absolute inset-0 rounded-full bg-success/20 blur-xl" aria-hidden="true" />
-          <span className="relative flex size-24 items-center justify-center rounded-full bg-success shadow-xl shadow-success/30">
+          <span className="relative flex size-20 items-center justify-center sm:size-24 rounded-full bg-success shadow-xl shadow-success/30">
             <Check className="size-12 text-white" strokeWidth={3} aria-hidden="true" />
           </span>
           <span className="absolute -bottom-1 -right-2 flex size-10 items-center justify-center rounded-full border-4 border-card bg-ember">
@@ -28,7 +28,7 @@ export function VerifyStep({
           </span>
         </div>
 
-        <h1 id="verify-title" className="mt-8 text-balance font-serif text-4xl font-semibold text-foreground">
+        <h1 id="verify-title" className="mt-6 text-balance font-serif text-3xl font-semibold text-foreground sm:mt-8 sm:text-4xl">
           Vérifiez votre adresse e-mail
         </h1>
         <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">

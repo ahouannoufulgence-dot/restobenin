@@ -20,7 +20,7 @@ const confetti = [
 export function SuccessStep({ restaurant, planName, email }: { restaurant: string; planName: string; email: string }) {
   return (
     <section aria-labelledby="success-title" className="mx-auto w-full max-w-2xl">
-      <GlassCard className="relative overflow-hidden px-6 py-14 text-center sm:px-14">
+      <GlassCard className="relative overflow-hidden px-5 py-10 text-center sm:px-14 sm:py-14">
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           {confetti.map((piece, index) => (
             <span
@@ -33,15 +33,15 @@ export function SuccessStep({ restaurant, planName, email }: { restaurant: strin
 
         <div className="relative mx-auto w-fit">
           <span className="absolute -inset-3 rounded-full bg-success/15" aria-hidden="true" />
-          <span className="relative flex size-28 items-center justify-center rounded-full bg-success shadow-2xl shadow-success/35">
+          <span className="relative flex size-24 items-center justify-center sm:size-28 rounded-full bg-success shadow-2xl shadow-success/35">
             <Check className="size-14 text-white" strokeWidth={3} aria-hidden="true" />
           </span>
         </div>
 
-        <h1 id="success-title" className="relative mt-10 text-balance font-serif text-5xl font-semibold text-foreground">
+        <h1 id="success-title" className="relative mt-8 text-balance font-serif text-4xl font-semibold text-foreground sm:mt-10 sm:text-5xl">
           Inscription réussie !
         </h1>
-        <p className="relative mx-auto mt-4 max-w-md text-pretty text-lg leading-relaxed text-muted-foreground">
+        <p className="relative mx-auto mt-4 max-w-md text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
           Bienvenue chez RestoBen. <span className="font-semibold text-foreground">{restaurant}</span> est prêt à
           démarrer.
         </p>
@@ -49,7 +49,7 @@ export function SuccessStep({ restaurant, planName, email }: { restaurant: strin
           Formule {planName} activée · Reçu envoyé à <span className="break-all text-foreground">{email}</span>
         </p>
 
-        <div className="relative mt-10 flex flex-col justify-center gap-3 sm:flex-row">
+        <div className="relative mt-8 flex flex-col justify-center gap-3 sm:mt-10 sm:flex-row">
           <Link href="/gerant" className={primaryButton}>
             Accéder à mon espace restaurant
             <ArrowRight className="size-4" aria-hidden="true" />

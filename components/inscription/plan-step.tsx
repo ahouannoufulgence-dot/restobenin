@@ -22,17 +22,17 @@ export function PlanStep({
   return (
     <section aria-labelledby="plan-title" className="mx-auto w-full max-w-6xl">
       <div className="text-center">
-        <h1 id="plan-title" className="text-balance font-serif text-4xl font-semibold text-foreground sm:text-5xl">
+        <h1 id="plan-title" className="text-balance font-serif text-3xl font-semibold text-foreground sm:text-5xl">
           Choisissez la formule qui vous ressemble
         </h1>
-        <p className="mt-3 flex items-center justify-center gap-3 text-muted-foreground">
+        <p className="mt-3 flex items-center justify-center gap-2 text-sm text-muted-foreground sm:gap-3 sm:text-base">
           <Ornament />
           Trois forfaits. Zéro compromis sur l&apos;excellence.
           <Ornament />
         </p>
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3 sm:mt-8">
         <div role="radiogroup" aria-label="Période de facturation" className="inline-flex rounded-full border border-border bg-card p-1 shadow-sm">
           {(['mensuel', 'annuel'] as const).map((option) => (
             <button
@@ -53,14 +53,15 @@ export function PlanStep({
         <span className="rounded-full bg-gold/20 px-3 py-1 text-xs font-semibold text-terracotta">Économisez 20%</span>
       </div>
 
-      <div className="mt-14 grid items-stretch gap-6 md:grid-cols-3">
+      <div className="mt-10 grid items-stretch gap-6 sm:mt-14 md:grid-cols-3">
         {plans.map((plan) => {
           const selected = plan.id === selectedPlan
           return (
             <article
               key={plan.id}
               className={cn(
-                'relative flex flex-col rounded-2xl border bg-card/85 p-8 backdrop-blur transition-shadow',
+                'relative flex flex-col rounded-2xl border bg-card/85 p-5 backdrop-blur transition-shadow sm:p-8',
+                plan.featured && 'max-md:order-first',
                 plan.featured ? 'border-ember/60 shadow-2xl shadow-ember/15 md:-translate-y-3' : 'border-border shadow-sm hover:shadow-lg',
                 selected && 'ring-2 ring-ember/40',
               )}
@@ -73,9 +74,9 @@ export function PlanStep({
               <header className="text-center">
                 <h2 className="font-serif text-2xl font-bold uppercase tracking-[0.15em] text-foreground">{plan.name}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
-                <div className="mt-5 border-b border-border pb-6 lining-nums">
+                <div className="mt-4 border-b border-border pb-5 lining-nums sm:mt-5 sm:pb-6">
                   <p className="whitespace-nowrap">
-                    <span className="font-serif text-5xl font-semibold text-foreground">
+                    <span className="font-serif text-4xl font-semibold text-foreground sm:text-5xl">
                       {formatFCFA(monthlyPrice(plan, billing))}
                     </span>
                     <span className="ml-1.5 font-serif text-2xl text-foreground">FCFA</span>
@@ -94,7 +95,7 @@ export function PlanStep({
                 </div>
               </header>
 
-              <ul className="mt-6 flex flex-1 flex-col gap-3">
+              <ul className="mt-5 flex flex-1 flex-col gap-2.5 sm:mt-6 sm:gap-3">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-3 text-sm text-foreground/85">
                     <CircleCheck className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden="true" />
@@ -108,7 +109,7 @@ export function PlanStep({
                 onClick={() => onSelect(plan.id)}
                 aria-label={`Choisir la formule ${plan.name}`}
                 className={cn(
-                  'mt-8 rounded-lg px-5 py-3 text-center text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30',
+                  'mt-6 min-h-12 rounded-lg px-5 py-3 text-center text-sm font-semibold sm:mt-8 transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30',
                   plan.featured || selected
                     ? 'bg-ember text-primary-foreground shadow-lg shadow-ember/25 hover:bg-ember-deep'
                     : 'border border-foreground/25 text-foreground hover:border-ember hover:text-ember',
@@ -121,7 +122,7 @@ export function PlanStep({
         })}
       </div>
 
-      <div className="mt-10 flex justify-center">
+      <div className="mt-8 flex justify-center sm:mt-10">
         <button type="button" onClick={onBack} className={ghostButton}>
           <ArrowLeft className="size-4" aria-hidden="true" />
           Retour

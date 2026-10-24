@@ -3,10 +3,12 @@ import { cn } from '@/lib/utils'
 
 export function Logo({
   withTagline = true,
+  hideTaglineOnMobile = false,
   href = '#',
   className,
 }: {
   withTagline?: boolean
+  hideTaglineOnMobile?: boolean
   href?: string
   className?: string
 }) {
@@ -18,7 +20,7 @@ export function Logo({
           Resto<span className="text-ember">Ben</span>
         </span>
         {withTagline && (
-          <span className="mt-1 whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.14em] text-cream/70">
+          <span className={cn('mt-1 whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.14em] text-cream/70', hideTaglineOnMobile && 'max-sm:hidden')}>
             La gestion élevée au goût près
           </span>
         )}

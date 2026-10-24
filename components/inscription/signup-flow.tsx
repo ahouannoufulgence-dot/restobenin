@@ -35,7 +35,7 @@ export function SignupFlow({ initialPlan }: { initialPlan?: PlanId }) {
       <main
         ref={mainRef}
         tabIndex={-1}
-        className="relative flex-1 bg-[radial-gradient(ellipse_at_top,var(--sand),transparent_65%)] px-6 py-14 outline-none sm:py-20 lg:px-10"
+        className="relative flex-1 bg-[radial-gradient(ellipse_at_top,var(--sand),transparent_65%)] px-4 py-8 outline-none sm:px-6 sm:py-20 lg:px-10"
       >
         <div key={step} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
           {step === 1 && (
@@ -78,7 +78,7 @@ export function SignupFlow({ initialPlan }: { initialPlan?: PlanId }) {
         </div>
       </main>
 
-      <footer className="border-t border-border bg-cream px-6 py-6 text-center text-xs text-muted-foreground">
+      <footer className="border-t border-border bg-cream px-4 py-5 text-center text-xs text-muted-foreground sm:px-6 sm:py-6">
         <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
           <Phone className="size-3.5 text-ember" aria-hidden="true" />
           Besoin d&apos;aide ?

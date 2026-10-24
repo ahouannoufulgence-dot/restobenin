@@ -73,20 +73,20 @@ export function PaymentStep({
     <section aria-labelledby="payment-title" className="mx-auto w-full max-w-5xl">
       <StepHeading id="payment-title" title="Récapitulatif et paiement" subtitle="Vérifiez votre commande, puis choisissez votre moyen de paiement." />
 
-      <form noValidate onSubmit={handleSubmit} className="mt-10 grid items-start gap-6 lg:grid-cols-5">
-        <GlassCard className="p-6 sm:p-8 lg:col-span-2">
+      <form noValidate onSubmit={handleSubmit} className="mt-6 grid grid-cols-[minmax(0,1fr)] items-start gap-5 sm:mt-10 sm:gap-6 lg:grid-cols-5">
+        <GlassCard className="p-5 sm:p-8 lg:col-span-2">
           <h2 className="font-serif text-2xl font-semibold text-foreground">Résumé</h2>
           <dl className="mt-5 divide-y divide-border">
             {rows.map((row) => (
-              <div key={row.label} className="flex items-baseline justify-between gap-4 py-3.5 text-sm">
+              <div key={row.label} className="flex items-baseline justify-between gap-4 py-3 text-sm sm:py-3.5">
                 <dt className="text-muted-foreground">{row.label}</dt>
                 <dd className="text-right font-medium text-foreground lining-nums">{row.value}</dd>
               </div>
             ))}
           </dl>
           <div className="mt-2 flex items-baseline justify-between gap-4 rounded-xl bg-sand/60 px-4 py-4">
-            <span className="font-serif text-xl font-semibold text-foreground">Total à payer</span>
-            <span className="whitespace-nowrap font-serif text-3xl font-semibold text-ember lining-nums">
+            <span className="font-serif text-lg font-semibold text-foreground sm:text-xl">Total à payer</span>
+            <span className="whitespace-nowrap font-serif text-2xl font-semibold text-ember lining-nums sm:text-3xl">
               {formatFCFA(total)} <span className="text-lg">FCFA</span>
             </span>
           </div>
@@ -97,65 +97,66 @@ export function PaymentStep({
           )}
         </GlassCard>
 
-        <GlassCard className="p-6 sm:p-8 lg:col-span-3">
-          <fieldset>
+        <GlassCard className="p-5 sm:p-8 lg:col-span-3">
+          <fieldset className="min-w-0">
             <legend className="font-serif text-2xl font-semibold text-foreground">Méthode de paiement</legend>
             <div className="mt-5 flex flex-col gap-3">
               {methods.map((m) => (
-                <label
-                  key={m.id}
-                  className={cn(
-                    'flex cursor-pointer items-center gap-4 rounded-xl border bg-background/60 px-4 py-3.5 transition-colors hover:border-ember/50',
-                    'has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ember/25',
-                    method === m.id ? 'border-ember bg-ember/5' : 'border-border',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="method"
-                    value={m.id}
-                    checked={method === m.id}
-                    onChange={() => {
-                      onMethodChange(m.id)
-                      setError(null)
-                    }}
-                    className="size-4 shrink-0 accent-ember"
-                  />
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sand text-terracotta">
-                    {m.badge ? (
-                      <span className="text-[10px] font-bold uppercase tracking-wide">{m.badge}</span>
-                    ) : (
-                      <m.icon className="size-5" aria-hidden="true" />
+                <div key={m.id}>
+                  <label
+                    className={cn(
+                      'flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border bg-background/60 px-3.5 py-3 transition-colors hover:border-ember/50 sm:gap-4 sm:px-4 sm:py-3.5',
+                      'has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ember/25',
+                      method === m.id ? 'border-ember bg-ember/5' : 'border-border',
                     )}
-                  </span>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-sm font-semibold text-foreground">{m.label}</span>
-                    <span className="text-xs text-muted-foreground">{m.hint}</span>
-                  </span>
-                </label>
+                  >
+                    <input
+                      type="radio"
+                      name="method"
+                      value={m.id}
+                      checked={method === m.id}
+                      onChange={() => {
+                        onMethodChange(m.id)
+                        setError(null)
+                      }}
+                      className="size-5 shrink-0 accent-ember sm:size-4"
+                    />
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sand text-terracotta">
+                      {m.badge ? (
+                        <span className="text-[10px] font-bold uppercase tracking-wide">{m.badge}</span>
+                      ) : (
+                        <m.icon className="size-5" aria-hidden="true" />
+                      )}
+                    </span>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="text-sm font-semibold text-foreground">{m.label}</span>
+                      <span className="text-xs text-muted-foreground">{m.hint}</span>
+                    </span>
+                  </label>
+                  {method === m.id && m.mobile && (
+                    <TextField
+                      id="momo"
+                      label={`Numéro ${m.label}`}
+                      icon={Phone}
+                      prefix="+229"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel-national"
+                      defaultValue={phone}
+                      wrapperClassName="mt-3 px-1"
+                    />
+                  )}
+                </div>
               ))}
             </div>
           </fieldset>
 
-          {selected?.mobile && (
-            <TextField
-              id="momo"
-              label={`Numéro ${selected.label}`}
-              icon={Phone}
-              prefix="+229"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel-national"
-              defaultValue={phone}
-              wrapperClassName="mt-5"
-            />
-          )}
-
-          <p className="mt-4 min-h-5 text-sm font-medium text-destructive" role="alert">
+          <p className="mt-3 min-h-5 text-sm font-medium text-destructive" role="alert">
             {error}
           </p>
 
-          <button type="submit" disabled={processing} className={cn(primaryButton, 'mt-2 w-full')}>
+          <div className="max-lg:sticky max-lg:bottom-0 max-lg:z-10 max-lg:-mx-5 max-lg:mt-2 max-lg:border-t max-lg:border-border max-lg:bg-card/95 max-lg:px-5 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-lg:pt-3 max-lg:backdrop-blur lg:mt-2">
+          <button type="submit" disabled={processing} className={cn(primaryButton, 'w-full')}>
             {processing ? (
               <>
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -165,6 +166,7 @@ export function PaymentStep({
               <>Payer maintenant · {formatFCFA(total)} FCFA</>
             )}
           </button>
+          </div>
           <p className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <ShieldCheck className="size-4 text-success" aria-hidden="true" />
             Paiement 100% sécurisé et crypté

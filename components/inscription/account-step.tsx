@@ -80,11 +80,11 @@ export function AccountStep({
     <button
       type="button"
       onClick={() => setShowPassword((v) => !v)}
-      className="rounded p-1 text-muted-foreground transition-colors hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
+      className="-mr-1 inline-flex size-10 items-center justify-center rounded text-muted-foreground transition-colors hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40"
       aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
       aria-pressed={showPassword}
     >
-      {showPassword ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+      {showPassword ? <EyeOff className="size-5" aria-hidden="true" /> : <Eye className="size-5" aria-hidden="true" />}
     </button>
   )
 
@@ -96,14 +96,15 @@ export function AccountStep({
         subtitle="Rejoignez les restaurants qui élèvent leur gestion au rang d’art."
       />
 
-      <GlassCard className="mt-10 p-6 sm:p-10">
-        <form noValidate onSubmit={handleSubmit} className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+      <GlassCard className="mt-6 p-5 sm:mt-10 sm:p-10">
+        <form noValidate onSubmit={handleSubmit} className="grid grid-cols-[minmax(0,1fr)] gap-x-6 gap-y-4 sm:grid-cols-2 sm:gap-y-5">
           <TextField
             id="restaurant"
             label="Nom du restaurant"
             icon={Store}
             placeholder="Chez Amina"
             autoComplete="organization"
+            enterKeyHint="next"
             defaultValue={defaultValues?.restaurant}
             error={errors.restaurant}
           />
@@ -124,6 +125,8 @@ export function AccountStep({
             placeholder="contact@chezamina.bj"
             autoComplete="email"
             inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
             defaultValue={defaultValues?.email}
             error={errors.email}
           />
@@ -178,7 +181,7 @@ export function AccountStep({
                 defaultValue={defaultValues?.establishment ?? ''}
                 aria-invalid={errors.establishment ? true : undefined}
                 aria-describedby={errors.establishment ? 'establishment-error' : undefined}
-                className="h-full w-full appearance-none bg-transparent pl-11 pr-10 text-sm text-foreground outline-none"
+                className="h-full w-full appearance-none bg-transparent pl-11 pr-10 text-base text-foreground outline-none sm:text-sm"
               >
                 <option value="" disabled>
                   Sélectionnez une option
