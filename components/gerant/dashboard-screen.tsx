@@ -26,10 +26,10 @@ function BrandMark({ className }: { className?: string }) {
 }
 
 function Dots({ delta, suffix = 'vs hier' }: { delta: number | null; suffix?: string }) {
-  if (delta === null) return <span className="text-xs text-muted-foreground">Pas de comparaison</span>
+  if (delta === null) return <span className="whitespace-nowrap text-[11px] text-muted-foreground sm:text-xs">Pas de comparaison</span>
   const up = delta >= 0
   return (
-    <span className={cn('inline-flex items-center gap-1 text-sm font-medium', up ? 'text-success' : 'text-destructive')}>
+    <span className={cn('inline-flex items-center gap-0.5 whitespace-nowrap text-[11px] font-medium sm:gap-1 sm:text-sm', up ? 'text-success' : 'text-destructive')}>
       <span aria-hidden="true">{up ? '↑' : '↓'}</span>
       {up ? '+' : '−'}
       {Math.abs(delta)}% <span className="font-normal text-foreground/70">{suffix}</span>
@@ -104,16 +104,16 @@ function Metric({
   onOpen?: () => void
 }) {
   return (
-    <Panel className="flex flex-col items-stretch gap-2 p-3 text-center sm:p-4">
-      <span className="flex items-center gap-2 text-left">
-        <span className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-full text-primary-foreground', iconClass)}>
-          <Icon className="size-[1.15rem]" aria-hidden="true" />
+    <Panel className="flex min-w-0 flex-col items-stretch gap-1.5 p-2.5 text-center sm:gap-2 sm:p-4">
+      <span className="flex items-center gap-1.5 text-left max-[359px]:flex-col max-[359px]:text-center sm:gap-2">
+        <span className={cn('inline-flex size-7 shrink-0 items-center justify-center rounded-full text-primary-foreground sm:size-9', iconClass)}>
+          <Icon className="size-4 sm:size-[1.15rem]" aria-hidden="true" />
         </span>
-        <span className="text-[11px] font-medium leading-tight text-foreground sm:text-sm">{label}</span>
+        <span className="min-w-0 text-[10px] font-medium leading-tight text-foreground sm:text-sm">{label}</span>
       </span>
       <div className="flex flex-1 flex-col items-center justify-center gap-0.5">{children}</div>
       {onOpen && (
-        <button type="button" onClick={onOpen} className="mx-auto inline-flex items-center gap-0.5 rounded-md text-sm font-medium text-ember-deep hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
+        <button type="button" onClick={onOpen} className="mx-auto inline-flex items-center gap-0.5 rounded-md text-xs font-medium text-ember-deep sm:text-sm hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
           Voir <ChevronRight className="size-4" aria-hidden="true" />
         </button>
       )}
@@ -124,7 +124,7 @@ function Metric({
 function SectionHeader({ id, title, onAll }: { id: string; title: string; onAll: () => void }) {
   return (
     <div className="mb-3 flex items-baseline justify-between gap-3">
-      <h2 id={id} className="font-serif text-xl font-semibold sm:text-2xl">
+      <h2 id={id} className="font-serif text-lg font-semibold min-[400px]:text-xl sm:text-2xl">
         {title}
       </h2>
       <button type="button" onClick={onAll} className="inline-flex shrink-0 items-center gap-0.5 rounded-md text-sm text-foreground/80 hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
@@ -206,7 +206,9 @@ export function DashboardScreen({
       counts.set(l.id, entry)
     }
   }
-  const popular = [...counts.values()].sort((a, b) => b.orders - a.orders).slice(0, 3)
+  const category = (id: string) => dishes.find((d) => d.id === id)?.category
+  const ranked = [...counts.values()].sort((a, b) => b.orders - a.orders)
+  const popular = [...ranked.filter((d) => category(d.id) === 'plats'), ...ranked.filter((d) => category(d.id) !== 'plats')].slice(0, 3)
 
   return (
     <>
@@ -239,8 +241,8 @@ export function DashboardScreen({
           <h2 id="sales-title" className="text-sm font-medium text-foreground">
             Ventes aujourd’hui
           </h2>
-          <p className="mt-2 font-serif text-[2.6rem] font-semibold leading-none tabular-nums text-foreground sm:text-6xl">
-            {amount(sales.revenue)} <span className="text-2xl font-medium sm:text-3xl">FCFA</span>
+          <p className="mt-2 whitespace-nowrap font-serif text-[2.1rem] font-semibold leading-none tabular-nums text-foreground min-[380px]:text-[2.6rem] sm:text-6xl">
+            {amount(sales.revenue)} <span className="text-xl font-medium min-[380px]:text-2xl sm:text-3xl">FCFA</span>
           </p>
           <p className="mt-3">
             <Dots delta={sales.change} />
@@ -255,28 +257,26 @@ export function DashboardScreen({
       {/* Indicateurs */}
       <div className="mt-3 grid grid-cols-3 gap-3">
         <Metric icon={ClipboardList} iconClass="bg-ember-deep" label="Commandes en cours" onOpen={() => onNavigate('commandes')}>
-          <span className="font-serif text-5xl font-semibold leading-none tabular-nums">{active.length}</span>
+          <span className="font-serif text-4xl font-semibold leading-none tabular-nums sm:text-5xl">{active.length}</span>
         </Metric>
         <Metric icon={LayoutGrid} iconClass="bg-[#b8862f]" label="Tables occupées" onOpen={() => onNavigate('tables')}>
-          <span className="font-serif text-5xl font-semibold leading-none tabular-nums">
+          <span className="font-serif text-4xl font-semibold leading-none tabular-nums sm:text-5xl">
             {occupied}
-            <span className="text-2xl text-foreground/70">/{tables.length}</span>
+            <span className="text-xl text-foreground/70 sm:text-2xl">/{tables.length}</span>
           </span>
-          <span className="text-xs text-foreground/75">{occupancy}% d’occupation</span>
+          <span className="text-[11px] text-foreground/75 sm:text-xs">{occupancy}% d’occupation</span>
         </Metric>
         <Metric icon={ShoppingCart} iconClass="bg-ember-deep" label="Panier moyen" onOpen={canViewReports ? () => onNavigate('rapports') : undefined}>
-          <span className="font-serif text-3xl font-semibold leading-none tabular-nums sm:text-4xl">
-            {amount(sales.average)} <span className="text-base font-medium sm:text-xl">FCFA</span>
+          <span className="whitespace-nowrap font-serif text-[1.2rem] font-semibold leading-none tabular-nums sm:text-4xl">
+            {amount(sales.average)} <span className="text-[10px] font-medium sm:text-xl">FCFA</span>
           </span>
-          <span className="text-xs">
-            <Dots delta={sales.averageChange} />
-          </span>
+          <Dots delta={sales.averageChange} />
         </Metric>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.25fr_1fr] lg:items-start">
         {/* À traiter maintenant */}
-        <section aria-labelledby="todo-title">
+        <section aria-labelledby="todo-title" className="min-w-0">
           <SectionHeader id="todo-title" title="À traiter maintenant" onAll={() => onNavigate('commandes')} />
           {toHandle.length === 0 ? (
             <Panel className="text-center text-sm text-muted-foreground">Aucune commande à traiter pour le moment.</Panel>
@@ -286,21 +286,21 @@ export function DashboardScreen({
                 const info = rowInfo[o.status]!
                 const names = o.lines.map((l) => l.name).slice(0, 2).join(' + ')
                 return (
-                  <li key={o.id}>
+                  <li key={o.id} className="min-w-0">
                     <button
                       type="button"
                       onClick={() => onNavigate(info.to)}
-                      className="flex w-full items-stretch gap-3 overflow-hidden rounded-2xl border border-border bg-card pr-3 text-left shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)] transition-colors hover:border-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+                      className="flex w-full min-w-0 items-stretch gap-2.5 overflow-hidden rounded-2xl border border-border bg-card pr-2.5 text-left sm:gap-3 sm:pr-3 shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)] transition-colors hover:border-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
                     >
-                      <Thumb src={image(o.lines[0]?.id ?? '')} className="size-[5.25rem] shrink-0 sm:size-24" />
+                      <Thumb src={image(o.lines[0]?.id ?? '')} className="w-[4.25rem] shrink-0 self-stretch min-[400px]:w-[4.75rem] sm:w-24" />
                       <span className="flex min-w-0 flex-1 flex-col justify-center gap-1 py-2">
-                        <span className="truncate text-sm font-semibold sm:text-base">
-                          #{o.number} <span className="ml-1">{names}</span>
+                        <span className="line-clamp-2 break-words text-[13px] font-semibold leading-snug sm:text-base">
+                          #{o.number} <span className="ml-0.5">{names}</span>
                         </span>
                         <span>
                           <span className="inline-flex rounded-md bg-ember-deep px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">{pill[o.status]}</span>
                         </span>
-                        <span className="flex items-center gap-3 text-xs text-foreground/75">
+                        <span className="flex items-center gap-2 whitespace-nowrap text-[11px] text-foreground/75 sm:gap-3 sm:text-xs">
                           <span>{ago(now, o.createdAt)}</span>
                           <span className="inline-flex items-center gap-1">
                             <User className="size-3.5" aria-hidden="true" />
@@ -309,10 +309,10 @@ export function DashboardScreen({
                         </span>
                       </span>
                       <span className="flex shrink-0 flex-col items-end justify-center text-right">
-                        <span className="text-sm font-semibold tabular-nums sm:text-base">{fcfa(o.total)}</span>
-                        <span className={cn('text-sm', info.className)}>{info.label}</span>
+                        <span className="whitespace-nowrap text-[13px] font-semibold tabular-nums sm:text-base">{fcfa(o.total)}</span>
+                        <span className={cn('whitespace-nowrap text-xs sm:text-sm', info.className)}>{info.label}</span>
                       </span>
-                      <ChevronRight className="my-auto size-5 shrink-0 text-foreground/70" aria-hidden="true" />
+                      <ChevronRight className="my-auto size-4 shrink-0 text-foreground/70 sm:size-5" aria-hidden="true" />
                     </button>
                   </li>
                 )
@@ -322,20 +322,20 @@ export function DashboardScreen({
         </section>
 
         {/* Plats populaires */}
-        <section aria-labelledby="popular-title">
+        <section aria-labelledby="popular-title" className="min-w-0">
           <SectionHeader id="popular-title" title="Plats populaires aujourd’hui" onAll={() => onNavigate('menu')} />
           {popular.length === 0 ? (
             <Panel className="text-center text-sm text-muted-foreground">Pas encore de commande aujourd’hui.</Panel>
           ) : (
-            <ul className="grid grid-cols-3 gap-3">
+            <ul className="grid grid-cols-3 gap-2.5 sm:gap-3">
               {popular.map((d) => (
                 <li key={d.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)]">
                   <Thumb src={image(d.id)} className="h-20 w-full sm:h-24" />
-                  <div className="p-2.5">
-                    <p className="truncate text-sm font-semibold">{d.name}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-foreground/80">
-                      <Star className="size-3.5 shrink-0 fill-gold text-gold" aria-hidden="true" />
-                      <span className="truncate">
+                  <div className="p-2 sm:p-2.5">
+                    <p className="truncate text-[11px] font-semibold min-[400px]:text-xs sm:text-sm">{d.name}</p>
+                    <p className="mt-0.5 flex items-start gap-1 text-[10px] text-foreground/80 min-[400px]:text-[11px] sm:text-xs">
+                      <Star className="mt-px size-3 shrink-0 fill-gold text-gold sm:size-3.5" aria-hidden="true" />
+                      <span className="leading-tight">
                         {d.orders} commande{d.orders > 1 ? 's' : ''}
                       </span>
                     </p>

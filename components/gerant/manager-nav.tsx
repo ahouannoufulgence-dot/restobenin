@@ -3,7 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { manager, type ManagerView } from '@/lib/gerant-data'
 
-type NavItem = { view: ManagerView; label: string; icon: LucideIcon }
+type NavItem = { view: ManagerView; label: string; short?: string; icon: LucideIcon }
 
 const desktopItems: NavItem[] = [
   { view: 'accueil', label: 'Accueil', icon: House },
@@ -23,7 +23,7 @@ type BottomNavProps = NavProps & { isManager?: boolean; onNewOrder: () => void }
 export function BottomNav({ current, onNavigate, badges, isManager = true, onNewOrder }: BottomNavProps) {
   // Un employé n'a pas accès aux rapports : la cuisine prend leur place.
   const left: NavItem[] = [
-    { view: 'accueil', label: 'Tableau de bord', icon: House },
+    { view: 'accueil', label: 'Tableau de bord', short: 'Accueil', icon: House },
     { view: 'commandes', label: 'Commandes', icon: ClipboardList },
   ]
   const right: NavItem[] = [
@@ -33,7 +33,7 @@ export function BottomNav({ current, onNavigate, badges, isManager = true, onNew
   const known = [...left, ...right].map((i) => i.view)
   const active = known.includes(current) ? current : 'plus'
 
-  const renderItem = ({ view, label, icon: Icon }: NavItem) => {
+  const renderItem = ({ view, label, short, icon: Icon }: NavItem) => {
     const isActive = active === view
     const badge = badges?.[view]
     return (
@@ -43,12 +43,19 @@ export function BottomNav({ current, onNavigate, badges, isManager = true, onNew
           onClick={() => onNavigate(view)}
           aria-current={isActive ? 'page' : undefined}
           className={cn(
-            'relative flex w-full flex-col items-center gap-1 rounded-2xl px-1 pb-2 pt-2.5 text-[11px] font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ember/30',
+            'relative flex w-full min-w-0 flex-col items-center gap-1 rounded-2xl px-0.5 pb-2 pt-2.5 text-[10px] font-medium leading-tight min-[380px]:text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ember/30',
             isActive ? 'text-ember-deep' : 'text-[#8a7662] hover:text-foreground',
           )}
         >
           <Icon className={cn('size-6', isActive && 'fill-ember-deep/90')} strokeWidth={isActive ? 2 : 1.75} aria-hidden="true" />
-          <span className="text-center">{label}</span>
+          {short ? (
+            <span className="text-center">
+              <span className="hidden min-[340px]:inline">{label}</span>
+              <span className="min-[340px]:hidden">{short}</span>
+            </span>
+          ) : (
+            <span className="text-center">{label}</span>
+          )}
           {badge ? (
             <span className="absolute top-1.5 left-1/2 ml-2 rounded-full bg-ember px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground">{badge}</span>
           ) : null}
@@ -65,9 +72,9 @@ export function BottomNav({ current, onNavigate, badges, isManager = true, onNew
           <button
             type="button"
             onClick={onNewOrder}
-            className="-mt-6 flex w-full flex-col items-center gap-1 pb-2 text-[11px] font-medium leading-tight text-foreground focus-visible:outline-none"
+            className="-mt-6 flex w-full min-w-0 flex-col items-center gap-1 pb-2 text-[10px] font-medium leading-tight text-foreground focus-visible:outline-none min-[380px]:text-[11px]"
           >
-            <span className="inline-flex size-16 items-center justify-center rounded-full bg-gradient-to-b from-ember to-ember-deep text-primary-foreground shadow-lg shadow-ember-deep/40 ring-4 ring-card">
+            <span className="inline-flex size-14 items-center justify-center rounded-full min-[380px]:size-16 bg-gradient-to-b from-ember to-ember-deep text-primary-foreground shadow-lg shadow-ember-deep/40 ring-4 ring-card">
               <ScanLine className="size-8" strokeWidth={1.75} aria-hidden="true" />
             </span>
             <span className="max-w-[4.5rem] text-center">Nouvelle commande</span>
