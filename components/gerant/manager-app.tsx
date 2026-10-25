@@ -116,7 +116,7 @@ export function ManagerApp() {
     return (
       <WelcomeScreen
         firstName={firstName}
-        subtitle={account ? `${settings.restaurantName} – ${account.establishment}` : `${manager.restaurant} – ${manager.city}`}
+        restaurantName={settings.restaurantName}
         onStart={() => navigate(access.canView('accueil') ? 'accueil' : access.home)}
         onModules={() => navigate('plus')}
       />
