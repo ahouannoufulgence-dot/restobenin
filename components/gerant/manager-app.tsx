@@ -1,10 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { firstName as firstNameOf, useAccount } from '@/lib/account-store'
 import { getPlan, teamLimits } from '@/lib/plans'
-import { getSession, type Role } from '@/lib/auth'
-import { useEmployees } from '@/lib/employees-store'
+import { getSession, signOut, type Session } from '@/lib/auth'
+import { findEmployee, useEmployees } from '@/lib/employees-store'
+import { accessFor, usePermissionOverrides } from '@/lib/permissions'
 import { summarize, useStock } from '@/lib/stock-store'
 import { initialTables, manager, type ManagerView, type RestaurantTable, type TableStatus } from '@/lib/gerant-data'
 import { menuActions, useMenu } from '@/lib/menu-store'
@@ -27,17 +30,15 @@ import { StockScreen } from './stock-screen'
 import { AccountScreen } from './account-screen'
 import { HelpScreen } from './help-screen'
 
-// Vues réservées au gérant (un employé connecté via l'onglet « Employé » ne les voit pas).
-const managerOnlyViews: ManagerView[] = ['rapports', 'employes', 'parametres', 'qr', 'abonnement']
-
 const nextTableStatus: Record<TableStatus, TableStatus> = { libre: 'occupee', occupee: 'reservee', reservee: 'libre' }
 
 export function ManagerApp() {
   const [started, setStarted] = useState(false)
   const [view, setView] = useState<ManagerView>('accueil')
   const [tables, setTables] = useState<RestaurantTable[]>(initialTables)
-  const [role, setRole] = useState<Role | null>(null)
-  const [sessionName, setSessionName] = useState<string | null>(null)
+  const router = useRouter()
+  // undefined : lecture de la session en cours ; null : personne n'est connecté.
+  const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [startSale, setStartSale] = useState(false)
   const [helpStart, setHelpStart] = useState(false)
 
@@ -48,22 +49,31 @@ export function ManagerApp() {
   const employees = useEmployees()
   const stock = useStock()
   const account = useAccount()
+  const overrides = usePermissionOverrides()
 
   useEffect(() => {
-    const session = getSession()
-    setRole(session?.role ?? null)
-    setSessionName(session?.name ?? null)
-  }, [])
-  const isManager = role !== 'employe'
+    const current = getSession()
+    if (!current) router.replace('/connexion')
+    setSession(current)
+  }, [router])
+
+  // Droits : le gérant a tout ; un employé a les droits de sa fonction (relue dans la liste d'équipe,
+  // donc un changement de fonction ou un congé s'applique tout de suite).
+  const isEmployee = session?.role === 'employe'
+  const me = isEmployee && session ? findEmployee(session.identifier) : undefined
+  const suspended = isEmployee && (!me || me.status !== 'actif')
+  const access = useMemo(() => accessFor(isEmployee && me ? me.role : 'gerant', overrides), [isEmployee, me, overrides])
+  const isManager = access.role === 'gerant'
+  const sessionName = session?.name ?? null
   // Prénom affiché : celui de la session ; à défaut, le responsable inscrit ; à défaut (démo), le gérant fictif.
-  const firstName = sessionName ? firstNameOf(sessionName) : isManager && account ? firstNameOf(account.manager) : manager.firstName
+  const firstName = sessionName ? firstNameOf(sessionName) : !isEmployee && account ? firstNameOf(account.manager) : manager.firstName
   const plan = account ? getPlan(account.planId) : null
   const establishmentLine = account && plan ? `${account.establishment} · Formule ${plan.name}` : `${manager.city} · Formule Standard`
 
   const sales = useMemo(() => todayStats(orders, settings.demoData), [orders, settings.demoData])
 
-  function navigate(next: ManagerView) {
-    if (!isManager && managerOnlyViews.includes(next)) return
+  // Ouvre une vue sans contrôle (réservé aux raccourcis déjà autorisés, comme « Nouvelle commande »).
+  function goTo(next: ManagerView) {
     setStarted(true)
     setStartSale(false)
     setHelpStart(false)
@@ -71,12 +81,43 @@ export function ManagerApp() {
     window.scrollTo({ top: 0 })
   }
 
+  // Ouvre une vue seulement si la fonction de la personne y donne accès.
+  function navigate(next: ManagerView) {
+    if (!access.canView(next)) return
+    goTo(next)
+  }
+
+  // Une fonction sans tableau de bord (cuisinier, serveur…) arrive directement sur son module, sans écran d'accueil.
+  const noHome = !!session && !suspended && !access.canView('accueil')
+  useEffect(() => {
+    if (noHome) {
+      setStarted(true)
+      setView(access.home)
+    }
+  }, [noHome, access.home])
+
+  if (session === undefined || session === null) return null
+
+  if (suspended) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-background px-6">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)]">
+          <h1 className="font-serif text-3xl font-semibold">Accès indisponible</h1>
+          <p className="mt-3 text-muted-foreground">Votre compte n’est plus actif sur cet établissement (congé ou retrait de l’équipe). Contactez votre gérant.</p>
+          <Link href="/connexion" onClick={signOut} className="mt-6 inline-flex h-12 items-center justify-center rounded-xl bg-ember-deep px-6 text-sm font-semibold text-primary-foreground hover:bg-ember-deep/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40">
+            Se déconnecter
+          </Link>
+        </div>
+      </main>
+    )
+  }
+
   if (!started) {
     return (
       <WelcomeScreen
         firstName={firstName}
         subtitle={account ? `${settings.restaurantName} – ${account.establishment}` : `${manager.restaurant} – ${manager.city}`}
-        onStart={() => navigate('accueil')}
+        onStart={() => navigate(access.canView('accueil') ? 'accueil' : access.home)}
         onModules={() => navigate('plus')}
       />
     )
@@ -88,13 +129,14 @@ export function ManagerApp() {
 
   // Bouton central « Nouvelle commande » : ouvre directement la vente au comptoir.
   const newOrder = () => {
-    navigate('caisse')
+    if (!access.createOrders) return
+    goTo('caisse')
     setStartSale(true)
   }
 
   // « Contactez le support » : ouvre directement le formulaire de contact.
   const openSupport = () => {
-    navigate('aide')
+    goTo('aide')
     setHelpStart(true)
   }
 
@@ -110,25 +152,31 @@ export function ManagerApp() {
     caisse: orders.filter(isUnpaid).length,
     plus: summarize(stock.items).critical,
   }
-  const navCurrent = view === 'parametres' || view === 'qr' || view === 'employes' || view === 'stock' || view === 'abonnement' || view === 'aide' ? 'plus' : view
+  // Si les droits changent pendant que la personne est sur un module, elle revient à son module d'accueil.
+  const allowedHere = view === 'caisse' ? access.canView('caisse') || access.createOrders : access.canView(view)
+  const current: ManagerView = allowedHere ? view : access.home
+  const navCurrent = current === 'parametres' || current === 'qr' || current === 'employes' || current === 'stock' || current === 'abonnement' || current === 'aide' ? 'plus' : current
+  const tableNumbers = tablesView.map((t) => tableNumber(t.id))
+  const hiddenInSidebar = (['accueil', 'commandes', 'cuisine', 'caisse', 'tables', 'menu', 'rapports'] as ManagerView[]).filter((v) => !access.canView(v))
 
   return (
     <div className="min-h-dvh bg-background lg:flex">
-      <Sidebar current={navCurrent} onNavigate={navigate} badges={badges} restaurantName={settings.restaurantName} subtitle={establishmentLine} hidden={isManager ? [] : ['rapports']} />
+      <Sidebar current={navCurrent} onNavigate={navigate} badges={badges} restaurantName={settings.restaurantName} subtitle={establishmentLine} hidden={hiddenInSidebar} />
       <main className="flex-1 pb-36 lg:pb-12">
         <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">
-          {view === 'accueil' && <DashboardScreen orders={orders} dishes={dishes} tables={tablesView} sales={sales} firstName={firstName} canViewReports={isManager} onNavigate={navigate} />}
-          {view === 'commandes' && <OrdersScreen orders={orders} onUpdate={ordersActions.setStatus} />}
-          {view === 'cuisine' && <KitchenScreen orders={orders} dishes={dishes} onUpdate={ordersActions.setStatus} onToggleDish={menuActions.toggle} />}
-          {view === 'caisse' && <CashierScreen orders={orders} dishes={dishes} settings={settings} startWithSale={startSale} />}
-          {view === 'tables' && <TablesScreen tables={tablesView} onCycle={cycleTable} onAdd={addTable} />}
-          {view === 'menu' && <MenuScreen dishes={dishes} onToggle={menuActions.toggle} onSave={menuActions.save} onRemove={menuActions.remove} newId={menuActions.newId} />}
-          {view === 'rapports' && isManager && <ReportsScreen orders={orders} settings={settings} tableCount={tablesView.length} pending={badges.commandes} onNavigate={navigate} />}
-          {view === 'plus' && <MoreScreen onNavigate={navigate} isManager={isManager} />}
-          {view === 'employes' && isManager && (
+          {current === 'accueil' && <DashboardScreen orders={orders} dishes={dishes} tables={tablesView} sales={sales} firstName={firstName} canViewReports={access.canView('rapports')} onNavigate={navigate} />}
+          {current === 'commandes' && <OrdersScreen orders={orders} onUpdate={ordersActions.setStatus} />}
+          {current === 'cuisine' && <KitchenScreen orders={orders} dishes={dishes} onUpdate={ordersActions.setStatus} onToggleDish={menuActions.toggle} />}
+          {current === 'caisse' && <CashierScreen orders={orders} dishes={dishes} settings={settings} startWithSale={startSale} canCollect={access.canCollect} tables={tableNumbers} />}
+          {current === 'tables' && <TablesScreen tables={tablesView} onCycle={cycleTable} onAdd={addTable} canAdd={access.canView('parametres')} />}
+          {current === 'menu' && <MenuScreen dishes={dishes} onToggle={menuActions.toggle} onSave={menuActions.save} onRemove={menuActions.remove} newId={menuActions.newId} canEdit={access.editMenu} />}
+          {current === 'rapports' && <ReportsScreen orders={orders} settings={settings} tableCount={tablesView.length} pending={badges.commandes} onNavigate={navigate} />}
+          {current === 'plus' && <MoreScreen onNavigate={navigate} canView={access.canView} />}
+          {current === 'employes' && (
             <EmployeesScreen employees={employees} limit={account ? teamLimits[account.planId] : null} planName={plan?.name} onOpenPlan={() => navigate('abonnement')} />
           )}
-          {view === 'abonnement' && isManager && <AccountScreen
+          {current === 'abonnement' && (
+            <AccountScreen
               account={account}
               restaurantName={settings.restaurantName}
               phone={settings.phone}
@@ -136,13 +184,14 @@ export function ManagerApp() {
               notifications={orders.filter((o) => o.status === 'en_attente').length}
               onNavigate={navigate}
               onSupport={openSupport}
-            />}
-          {view === 'aide' && <HelpScreen isManager={isManager} onNavigate={navigate} initial={helpStart ? 'contact' : undefined} />}
-          {view === 'stock' && <StockScreen items={stock.items} movements={stock.movements} />}
-          {(view === 'parametres' || view === 'qr') && isManager && <SettingsScreen key={view} tables={tablesView} focusQr={view === 'qr'} onBack={() => navigate('plus')} />}
+            />
+          )}
+          {current === 'aide' && <HelpScreen isManager={isManager} onNavigate={navigate} initial={helpStart ? 'contact' : undefined} />}
+          {current === 'stock' && <StockScreen items={stock.items} movements={stock.movements} />}
+          {(current === 'parametres' || current === 'qr') && <SettingsScreen key={current} tables={tablesView} focusQr={current === 'qr'} onBack={() => navigate('plus')} canEditRoles={isManager} />}
         </div>
       </main>
-      <BottomNav current={navCurrent} onNavigate={navigate} badges={badges} isManager={isManager} onNewOrder={newOrder} />
+      <BottomNav current={navCurrent} onNavigate={navigate} badges={badges} canView={access.canView} canCreateOrder={access.createOrders} onNewOrder={newOrder} />
     </div>
   )
 }

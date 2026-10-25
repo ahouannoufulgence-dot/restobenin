@@ -8,6 +8,7 @@ import { makeQr, printPosters } from '@/lib/qr-print'
 import { normalizeSiteUrl, saveSettings, tableNumber, tableUrl, useSettings } from '@/lib/settings-store'
 import { ordersActions } from '@/lib/orders-store'
 import { Panel, ScreenHeader, iconButton, primaryAction } from './shared'
+import { RolesPanel } from './roles-panel'
 
 const fieldClass =
   'h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none placeholder:text-muted-foreground focus:border-ember focus:ring-3 focus:ring-ember/20'
@@ -15,7 +16,7 @@ const fieldClass =
 const smallAction =
   'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold transition-colors hover:border-ember hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30'
 
-export function SettingsScreen({ tables, focusQr, onBack }: { tables: RestaurantTable[]; focusQr: boolean; onBack: () => void }) {
+export function SettingsScreen({ tables, focusQr, onBack, canEditRoles = false }: { tables: RestaurantTable[]; focusQr: boolean; onBack: () => void; canEditRoles?: boolean }) {
   const settings = useSettings()
   const [name, setName] = useState(settings.restaurantName)
   const [site, setSite] = useState(settings.siteUrl)
@@ -227,6 +228,8 @@ export function SettingsScreen({ tables, focusQr, onBack }: { tables: Restaurant
             </ul>
           </Panel>
         </section>
+
+        {canEditRoles && <RolesPanel />}
 
         {settings.demoData && (
           <Panel>

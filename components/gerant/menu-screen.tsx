@@ -207,12 +207,15 @@ export function MenuScreen({
   onSave,
   onRemove,
   newId,
+  canEdit = true,
 }: {
   dishes: MenuDish[]
   onToggle: (id: string) => void
   onSave: (dish: MenuDish) => boolean
   onRemove: (id: string) => void
   newId: () => string
+  /** false : consultation seule (pas d'ajout, de modification, de suppression ni de changement de disponibilité). */
+  canEdit?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [form, setForm] = useState<Draft | null>(null)
@@ -257,8 +260,9 @@ export function MenuScreen({
               <button
                 type="button"
                 onClick={() => setForm({ id: dish.id, name: dish.name, price: String(dish.price), description: dish.description, category: dish.category, image: dish.image })}
-                aria-label={`Modifier ${dish.name}`}
-                className="flex min-w-0 flex-1 items-center gap-4 rounded-xl text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+                disabled={!canEdit}
+                aria-label={canEdit ? `Modifier ${dish.name}` : dish.name}
+                className="flex min-w-0 flex-1 items-center gap-4 rounded-xl text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 disabled:cursor-default"
               >
                 <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-muted">
                   {dish.image ? (
@@ -272,7 +276,7 @@ export function MenuScreen({
                   <p className="text-sm tabular-nums text-foreground/80">{fcfa(dish.price)}</p>
                   <p className="flex items-center gap-2 text-xs font-medium">
                     <span className={dish.available ? 'text-success' : 'text-muted-foreground'}>{dish.available ? 'Disponible' : 'Indisponible'}</span>
-                    {!dish.image && (
+                    {canEdit && !dish.image && (
                       <span className="inline-flex items-center gap-1 text-ember-deep">
                         <Camera className="size-3" aria-hidden="true" />
                         Ajouter une photo
@@ -287,8 +291,9 @@ export function MenuScreen({
                 aria-checked={dish.available}
                 aria-label={`Disponibilité de ${dish.name}`}
                 onClick={() => onToggle(dish.id)}
+                disabled={!canEdit}
                 className={cn(
-                  'relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30',
+                  'relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 disabled:cursor-not-allowed disabled:opacity-60',
                   dish.available ? 'bg-success' : 'bg-foreground/20',
                 )}
               >
@@ -301,12 +306,14 @@ export function MenuScreen({
 
       {visible.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">Aucun plat ne correspond à votre recherche.</p>}
 
+      {canEdit && (
       <div className="mt-8 flex justify-center">
         <button type="button" onClick={() => setForm(emptyDraft)} className={cn(primaryAction, 'w-full sm:w-auto')}>
           <Plus className="size-4" aria-hidden="true" />
           Ajouter un plat
         </button>
       </div>
+      )}
 
       {form && (
         <DishForm

@@ -9,23 +9,23 @@ import type { ManagerView } from '@/lib/gerant-data'
 import { summarize, useStock } from '@/lib/stock-store'
 import { Panel, ScreenHeader } from './shared'
 
-type Module = { label: string; description: string; icon: LucideIcon; badge?: string; action?: ManagerView; managerOnly?: boolean }
+type Module = { label: string; description: string; icon: LucideIcon; badge?: string; action?: ManagerView }
 
 const modules: Module[] = [
   { label: 'Cuisine', description: 'Préparation des commandes et disponibilité des plats', icon: ChefHat, action: 'cuisine' },
   { label: 'Caisse', description: 'Encaissement, ventes au comptoir et reçus', icon: Wallet, action: 'caisse' },
-  { label: 'Rapports', description: 'Ventes par jour, semaine, mois, année + export PDF', icon: BarChart3, action: 'rapports', managerOnly: true },
+  { label: 'Rapports', description: 'Ventes par jour, semaine, mois, année + export PDF', icon: BarChart3, action: 'rapports' },
   { label: 'Tables', description: 'Plan de salle et occupation', icon: LayoutGrid, action: 'tables' },
   { label: 'Menu', description: 'Plats, prix et photos', icon: UtensilsCrossed, action: 'menu' },
-  { label: 'Employés', description: 'Équipe, rôles et accès à l’application', icon: Users, action: 'employes', managerOnly: true },
+  { label: 'Employés', description: 'Équipe, rôles et accès à l’application', icon: Users, action: 'employes' },
   { label: 'Stock', description: 'Gestion avancée des stocks', icon: Package, action: 'stock' },
-  { label: 'Paramètres restaurant', description: 'Restaurant, reçus, adresse du site, QR codes', icon: Store, action: 'parametres', managerOnly: true },
-  { label: 'QR Code', description: 'Gérer les QR codes de table', icon: QrCode, action: 'qr', managerOnly: true },
-  { label: 'Abonnement', description: 'Votre formule et facturation', icon: CreditCard, action: 'abonnement', managerOnly: true },
+  { label: 'Paramètres restaurant', description: 'Restaurant, reçus, adresse du site, QR codes', icon: Store, action: 'parametres' },
+  { label: 'QR Code', description: 'Gérer les QR codes de table', icon: QrCode, action: 'qr' },
+  { label: 'Abonnement', description: 'Votre formule et facturation', icon: CreditCard, action: 'abonnement' },
   { label: 'Aide & Support', description: 'FAQ, guide de démarrage et contact du support', icon: CircleHelp, action: 'aide' },
 ]
 
-export function MoreScreen({ onNavigate, isManager = true }: { onNavigate: (view: ManagerView) => void; isManager?: boolean }) {
+export function MoreScreen({ onNavigate, canView = () => true }: { onNavigate: (view: ManagerView) => void; canView?: (view: ManagerView) => boolean }) {
   const alerts = summarize(useStock().items).critical
 
   function handle(action: Module['action']) {
@@ -47,7 +47,7 @@ export function MoreScreen({ onNavigate, isManager = true }: { onNavigate: (view
       <div className="grid items-start gap-4 lg:max-w-2xl">
         <Panel className="p-2 sm:p-2">
           <ul className="divide-y divide-border">
-            {modules.filter((m) => isManager || !m.managerOnly).map(({ label, description, icon: Icon, action }) => {
+            {modules.filter((m) => !m.action || canView(m.action)).map(({ label, description, icon: Icon, action }) => {
               const badge = action === 'stock' && alerts > 0 ? `${alerts} alerte${alerts > 1 ? 's' : ''}` : undefined
               return (
               <li key={label}>

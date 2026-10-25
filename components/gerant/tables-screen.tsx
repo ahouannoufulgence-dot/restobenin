@@ -18,10 +18,13 @@ export function TablesScreen({
   tables,
   onCycle,
   onAdd,
+  canAdd = true,
 }: {
   tables: RestaurantTable[]
   onCycle: (id: string) => void
   onAdd: () => void
+  /** false : on ne peut pas ajouter de table (réservé au gérant). */
+  canAdd?: boolean
 }) {
   const [filter, setFilter] = useState<Filter>('toutes')
   const visible = filter === 'toutes' ? tables : tables.filter((t) => t.status === filter)
@@ -78,12 +81,14 @@ export function TablesScreen({
         })}
       </ul>
 
-      <div className="mt-8 flex justify-center">
-        <button type="button" onClick={onAdd} className={cn(primaryAction, 'w-full sm:w-auto')}>
-          <Plus className="size-4" aria-hidden="true" />
-          Ajouter une table
-        </button>
-      </div>
+      {canAdd && (
+        <div className="mt-8 flex justify-center">
+          <button type="button" onClick={onAdd} className={cn(primaryAction, 'w-full sm:w-auto')}>
+            <Plus className="size-4" aria-hidden="true" />
+            Ajouter une table
+          </button>
+        </div>
+      )}
     </>
   )
 }

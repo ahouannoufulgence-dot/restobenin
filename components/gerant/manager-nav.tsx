@@ -1,4 +1,4 @@
-import { BarChart3, ChefHat, ClipboardList, Flame, House, LayoutGrid, MoreHorizontal, ScanLine, User, UtensilsCrossed, Wallet } from 'lucide-react'
+import { BarChart3, ChefHat, ClipboardList, Flame, House, LayoutGrid, MoreHorizontal, Package, ScanLine, User, UtensilsCrossed, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { manager, type ManagerView } from '@/lib/gerant-data'
@@ -18,18 +18,33 @@ const desktopItems: NavItem[] = [
 
 type NavProps = { current: ManagerView; onNavigate: (view: ManagerView) => void; badges?: Partial<Record<ManagerView, number>> }
 
-type BottomNavProps = NavProps & { isManager?: boolean; onNewOrder: () => void }
+type BottomNavProps = NavProps & {
+  /** Le module est-il ouvert à cette personne ? */
+  canView: (view: ManagerView) => boolean
+  /** Peut prendre une commande : affiche le bouton central. */
+  canCreateOrder: boolean
+  onNewOrder: () => void
+}
 
-export function BottomNav({ current, onNavigate, badges, isManager = true, onNewOrder }: BottomNavProps) {
-  // Un employé n'a pas accès aux rapports : la cuisine prend leur place.
-  const left: NavItem[] = [
-    { view: 'accueil', label: 'Tableau de bord', short: 'Accueil', icon: House },
-    { view: 'commandes', label: 'Commandes', icon: ClipboardList },
-  ]
-  const right: NavItem[] = [
-    isManager ? { view: 'rapports', label: 'Rapports', icon: BarChart3 } : { view: 'cuisine', label: 'Cuisine', icon: ChefHat },
-    { view: 'plus', label: 'Plus', icon: User },
-  ]
+const leftCandidates: NavItem[] = [
+  { view: 'accueil', label: 'Tableau de bord', short: 'Accueil', icon: House },
+  { view: 'commandes', label: 'Commandes', icon: ClipboardList },
+]
+
+// Un seul module « de métier » à droite : le premier auquel la personne a accès.
+const rightCandidates: NavItem[] = [
+  { view: 'rapports', label: 'Rapports', icon: BarChart3 },
+  { view: 'cuisine', label: 'Cuisine', icon: ChefHat },
+  { view: 'caisse', label: 'Caisse', icon: Wallet },
+  { view: 'tables', label: 'Tables', icon: LayoutGrid },
+  { view: 'menu', label: 'Menu', icon: UtensilsCrossed },
+  { view: 'stock', label: 'Stock', icon: Package },
+]
+
+export function BottomNav({ current, onNavigate, badges, canView, canCreateOrder, onNewOrder }: BottomNavProps) {
+  const left = leftCandidates.filter((i) => canView(i.view))
+  const pick = rightCandidates.find((i) => canView(i.view))
+  const right: NavItem[] = [...(pick ? [pick] : []), { view: 'plus', label: 'Plus', icon: User }]
   const known = [...left, ...right].map((i) => i.view)
   const active = known.includes(current) ? current : 'plus'
 
@@ -68,6 +83,7 @@ export function BottomNav({ current, onNavigate, badges, isManager = true, onNew
     <nav aria-label="Navigation principale" className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
       <ul className="mx-auto flex max-w-xl items-end justify-between rounded-[1.75rem] border border-border bg-card/95 px-2 shadow-[0_-8px_30px_-12px_rgba(74,36,14,0.35)] backdrop-blur">
         {left.map(renderItem)}
+        {canCreateOrder && (
         <li className="flex flex-1 justify-center">
           <button
             type="button"
@@ -80,6 +96,7 @@ export function BottomNav({ current, onNavigate, badges, isManager = true, onNew
             <span className="max-w-[4.5rem] text-center">Nouvelle commande</span>
           </button>
         </li>
+        )}
         {right.map(renderItem)}
       </ul>
     </nav>

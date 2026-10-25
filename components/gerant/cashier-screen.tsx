@@ -84,13 +84,43 @@ function ReceiptDialog({ order, settings, onClose }: { order: StoreOrder; settin
   )
 }
 
-function SaleDialog({ dishes, onCreate, onClose }: { dishes: MenuDish[]; onCreate: (lines: { id: string; name: string; qty: number; price: number }[]) => void; onClose: () => void }) {
+function SaleDialog({
+  dishes,
+  tables = [],
+  collect = true,
+  onCreate,
+  onClose,
+}: {
+  dishes: MenuDish[]
+  /** Numéros de table proposés (en plus du comptoir). */
+  tables?: string[]
+  /** true : la caisse encaisse ensuite la commande ; false : prise de commande seule (serveur). */
+  collect?: boolean
+  onCreate: (table: string, lines: { id: string; name: string; qty: number; price: number }[]) => void
+  onClose: () => void
+}) {
   const [qty, setQty] = useState<Record<string, number>>({})
+  const [table, setTable] = useState('Comptoir')
   const available = dishes.filter((d) => d.available)
   const chosen = available.filter((d) => (qty[d.id] ?? 0) > 0)
   const total = chosen.reduce((s, d) => s + d.price * qty[d.id], 0)
   return (
-    <Dialog title="Nouvelle vente au comptoir" onClose={onClose}>
+    <Dialog title={collect ? 'Nouvelle vente au comptoir' : 'Nouvelle commande'} onClose={onClose}>
+      {tables.length > 0 && (
+        <div className="mb-4">
+          <label htmlFor="sale-table" className="mb-1 block text-sm font-medium">
+            Pour
+          </label>
+          <select id="sale-table" value={table} onChange={(e) => setTable(e.target.value)} className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none focus:border-ember focus:ring-3 focus:ring-ember/20">
+            <option value="Comptoir">Vente au comptoir</option>
+            {tables.map((t) => (
+              <option key={t} value={t}>
+                Table {t}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <ul className="divide-y divide-border">
         {available.map((d) => (
           <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
@@ -105,17 +135,32 @@ function SaleDialog({ dishes, onCreate, onClose }: { dishes: MenuDish[]; onCreat
       <button
         type="button"
         disabled={chosen.length === 0}
-        onClick={() => onCreate(chosen.map((d) => ({ id: d.id, name: d.name, qty: qty[d.id], price: d.price })))}
+        onClick={() => onCreate(table, chosen.map((d) => ({ id: d.id, name: d.name, qty: qty[d.id], price: d.price })))}
         className={cn(primaryAction, 'mt-5 w-full disabled:opacity-50')}
       >
         {chosen.length === 0 ? 'Choisissez au moins un plat' : `Envoyer en cuisine · ${fcfa(total)}`}
       </button>
-      <p className="mt-2 text-xs text-muted-foreground">La commande part en cuisine et s’ouvre ensuite ici pour l’encaisser.</p>
+      <p className="mt-2 text-xs text-muted-foreground">{collect ? 'La commande part en cuisine et s’ouvre ensuite ici pour l’encaisser.' : 'La commande part en cuisine. L’encaissement se fait à la caisse.'}</p>
     </Dialog>
   )
 }
 
-export function CashierScreen({ orders, dishes, settings, startWithSale = false }: { orders: StoreOrder[]; dishes: MenuDish[]; settings: Settings; startWithSale?: boolean }) {
+export function CashierScreen({
+  orders,
+  dishes,
+  settings,
+  startWithSale = false,
+  canCollect = true,
+  tables = [],
+}: {
+  orders: StoreOrder[]
+  dishes: MenuDish[]
+  settings: Settings
+  startWithSale?: boolean
+  /** false : la personne peut seulement prendre des commandes, pas encaisser (ex. serveur). */
+  canCollect?: boolean
+  tables?: string[]
+}) {
   const [tab, setTab] = useState<'due' | 'paid'>('due')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [method, setMethod] = useState<PayMethod>('especes')
@@ -123,6 +168,7 @@ export function CashierScreen({ orders, dishes, settings, startWithSale = false 
   const [error, setError] = useState('')
   const [receipt, setReceipt] = useState<StoreOrder | null>(null)
   const [sale, setSale] = useState(startWithSale)
+  const [sent, setSent] = useState<StoreOrder | null>(null)
 
   const due = orders.filter(isUnpaid).sort((a, b) => a.createdAt - b.createdAt)
   const paidToday = orders.filter((o) => o.payment && isToday(o.payment.at)).sort((a, b) => b.payment!.at - a.payment!.at)
@@ -148,6 +194,43 @@ export function CashierScreen({ orders, dishes, settings, startWithSale = false 
     setSelectedId(id)
     setReceived('')
     setError('')
+  }
+
+  if (!canCollect) {
+    return (
+      <>
+        <ScreenHeader
+          title="Nouvelle commande"
+          subtitle="Prenez une commande : elle part directement en cuisine."
+          actions={
+            <button type="button" onClick={() => setSale(true)} className={cn(primaryAction, 'h-10 px-4')}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nouvelle commande
+            </button>
+          }
+        />
+        {sent && (
+          <p role="status" className="mb-4 flex items-center gap-2 rounded-xl bg-success/12 p-3 text-sm font-medium text-success">
+            <Check className="size-4 shrink-0" aria-hidden="true" />
+            Commande #{sent.number} envoyée en cuisine ({tableLabel(sent.table)}).
+          </p>
+        )}
+        <Panel className="py-12 text-center text-sm text-muted-foreground">L’encaissement est réservé à la caisse.</Panel>
+        {sale && (
+          <SaleDialog
+            dishes={dishes}
+            tables={tables}
+            collect={false}
+            onClose={() => setSale(false)}
+            onCreate={(table, lines) => {
+              const created = ordersActions.create({ table, lines, source: 'comptoir' })
+              if (created) setSent(created)
+              setSale(false)
+            }}
+          />
+        )}
+      </>
+    )
   }
 
   return (
@@ -322,9 +405,10 @@ export function CashierScreen({ orders, dishes, settings, startWithSale = false 
       {sale && (
         <SaleDialog
           dishes={dishes}
+          tables={tables}
           onClose={() => setSale(false)}
-          onCreate={(lines) => {
-            const created = ordersActions.create({ table: 'Comptoir', lines, source: 'comptoir' })
+          onCreate={(table, lines) => {
+            const created = ordersActions.create({ table, lines, source: 'comptoir' })
             if (created) {
               setTab('due')
               select(created.id)
