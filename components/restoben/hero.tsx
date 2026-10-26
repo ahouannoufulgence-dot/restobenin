@@ -23,7 +23,7 @@ export function Hero() {
   return (
     <section className="relative isolate overflow-hidden bg-espresso" aria-labelledby="hero-title">
       <Image
-        src="/images/hero-restaurant.png"
+        src="/images/hero-restaurant.webp"
         alt=""
         fill
         priority

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, ChefHat, ChevronRight, ConciergeBell, Filter, Mail, Package, Phone, Plus, Search, ShieldCheck, Trash2, UserCheck, Users, Umbrella, Wallet, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Photo } from '@/components/ui/photo'
 import { isValidEmail, isValidPhone } from '@/lib/auth'
 import { photoToDataUrl } from '@/lib/image-resize'
 import {
@@ -41,8 +42,7 @@ const initials = (name: string) =>
 
 function Avatar({ employee, className }: { employee: Pick<Employee, 'name' | 'photo'>; className?: string }) {
   return employee.photo ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={employee.photo} alt="" className={cn('shrink-0 rounded-full object-cover', className)} />
+    <Photo src={employee.photo} className={cn('shrink-0 rounded-full', className)} sizes="96px" />
   ) : (
     <span aria-hidden="true" className={cn('inline-flex shrink-0 items-center justify-center rounded-full bg-sand font-serif font-semibold text-terracotta', className)}>
       {initials(employee.name)}

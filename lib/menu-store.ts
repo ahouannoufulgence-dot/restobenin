@@ -42,12 +42,18 @@ function isMenu(value: unknown): value is MenuDish[] {
   )
 }
 
+// Les photos d'origine sont passées de .png à .webp (bien plus légères) : on corrige les menus déjà enregistrés.
+function migrateImage(d: MenuDish): MenuDish {
+  const m = d.image?.match(/^(\/images\/gerant\/[a-z-]+)\.png$/)
+  return m ? { ...d, image: `${m[1]}.webp` } : d
+}
+
 function read(): MenuDish[] {
   try {
     const raw = window.localStorage.getItem(KEY)
     if (!raw) return SEED
     const parsed: unknown = JSON.parse(raw)
-    return isMenu(parsed) ? parsed : SEED
+    return isMenu(parsed) ? parsed.map(migrateImage) : SEED
   } catch {
     return SEED
   }

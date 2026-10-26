@@ -26,7 +26,7 @@ export function WelcomeScreen({ restaurantName, table, onStart }: { restaurantNa
         <div className="relative my-8 aspect-square w-60 shrink-0 sm:w-72 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:my-0 lg:w-full lg:max-w-md lg:justify-self-center">
           <div className="absolute inset-4 rounded-full bg-ember/30 blur-3xl" aria-hidden="true" />
           <Image
-            src="/images/gerant/hero-dish.png"
+            src="/images/gerant/hero-dish.webp"
             alt="Plat du restaurant"
             fill
             priority

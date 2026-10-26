@@ -3,6 +3,7 @@
 import { Bell, ChevronRight, ClipboardList, LayoutGrid, ShoppingCart, Star, User, UtensilsCrossed } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Photo } from '@/components/ui/photo'
 import { fcfa, type ManagerView, type RestaurantTable } from '@/lib/gerant-data'
 import type { MenuDish } from '@/lib/menu-store'
 import type { OrderStatus } from '@/lib/gerant-data'
@@ -159,8 +160,7 @@ const tableText = (table: string) => (/^\d+$/.test(table) ? `Table ${table.padSt
 
 function Thumb({ src, className }: { src?: string; className?: string }) {
   return src ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" className={cn('object-cover', className)} />
+    <Photo src={src} className={className} sizes="(min-width: 1024px) 200px, 128px" />
   ) : (
     <span className={cn('flex items-center justify-center bg-sand text-terracotta/60', className)} aria-hidden="true">
       <UtensilsCrossed className="size-7" />

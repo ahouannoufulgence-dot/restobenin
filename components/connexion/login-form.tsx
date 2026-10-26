@@ -61,7 +61,7 @@ export function LoginForm() {
     <main className="min-h-dvh bg-background lg:grid lg:grid-cols-[1.1fr_1fr]">
       {/* Bandeau photo + marque */}
       <section className="relative isolate flex min-h-[23rem] flex-col items-center justify-center overflow-hidden bg-espresso px-6 pb-20 pt-14 text-center text-cream sm:min-h-[26rem] lg:min-h-dvh lg:pb-14">
-        <Image src="/images/hero-restaurant.png" alt="" fill priority sizes="(min-width: 1024px) 55vw, 100vw" className="-z-20 object-cover object-center" />
+        <Image src="/images/hero-restaurant.webp" alt="" fill priority sizes="(min-width: 1024px) 55vw, 100vw" className="-z-20 object-cover object-center" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-espresso/75 via-espresso/45 to-espresso/90" aria-hidden="true" />
 
         <Link href="/" aria-label="RestoBen, retour à l’accueil" className="flex flex-col items-center focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-gold/50">

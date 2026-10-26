@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Photo } from '@/components/ui/photo'
 import { photoToDataUrl } from '@/lib/image-resize'
 import {
   formatQty,
@@ -89,8 +90,7 @@ function whenLabel(at: number, now: number) {
 
 function Thumb({ item, className }: { item: Pick<StockItem, 'kind' | 'image'>; className?: string }) {
   if (item.image) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={item.image} alt="" className={cn('shrink-0 object-cover', className)} />
+    return <Photo src={item.image} className={cn('shrink-0', className)} sizes="128px" />
   }
   const { icon: Icon, tile, color } = kindStyle[item.kind]
   return (
