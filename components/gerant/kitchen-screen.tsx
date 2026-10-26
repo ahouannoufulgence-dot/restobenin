@@ -6,8 +6,11 @@ import { cn } from '@/lib/utils'
 import type { OrderStatus } from '@/lib/gerant-data'
 import { tableLabel, type StoreOrder } from '@/lib/orders-store'
 import type { MenuDish } from '@/lib/menu-store'
+import { playDing, unlockAudio } from '@/lib/kitchen-sound'
 import { useNow } from '@/lib/use-now'
 import { Panel, ScreenHeader } from './shared'
+
+const SOUND_KEY = 'restoben:kitchen-sound'
 
 const columns: { status: OrderStatus; title: string; empty: string; action?: { label: string; to: OrderStatus }; icon: typeof Flame; tone: string }[] = [
   { status: 'en_attente', title: 'À préparer', empty: 'Aucune nouvelle commande.', action: { label: 'Démarrer la préparation', to: 'en_cours' }, icon: Clock, tone: 'bg-gold/20 text-[#8a5a12]' },
@@ -17,24 +20,6 @@ const columns: { status: OrderStatus; title: string; empty: string; action?: { l
 
 function minutes(ms: number) {
   return Math.max(0, Math.floor(ms / 60_000))
-}
-
-function beep() {
-  try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    const ctx = new Ctx()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.frequency.value = 880
-    gain.gain.value = 0.08
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.25)
-    osc.onended = () => ctx.close()
-  } catch {
-    /* son indisponible */
-  }
 }
 
 export function KitchenScreen({
@@ -50,14 +35,48 @@ export function KitchenScreen({
 }) {
   const now = useNow(30_000)
   const [sound, setSound] = useState(true)
-  const pending = orders.filter((o) => o.status === 'en_attente').length
-  const lastPending = useRef(pending)
+  const [blocked, setBlocked] = useState(false)
+  // Seules les commandes arrivées après l'ouverture de l'écran déclenchent le son.
+  const openedAt = useRef(Date.now())
+  const announced = useRef(new Set<string>())
 
-  // Bip quand une nouvelle commande arrive en cuisine.
+  // Retrouve le choix « son coupé » d'une fois sur l'autre.
   useEffect(() => {
-    if (sound && pending > lastPending.current) beep()
-    lastPending.current = pending
-  }, [pending, sound])
+    try {
+      if (window.localStorage.getItem(SOUND_KEY) === 'off') setSound(false)
+    } catch {
+      /* stockage indisponible */
+    }
+  }, [])
+
+  // Le premier toucher de l'écran débloque le son (sinon le navigateur le bloque).
+  useEffect(() => {
+    const unlock = async () => {
+      if (await unlockAudio()) setBlocked(false)
+    }
+    window.addEventListener('pointerdown', unlock, { once: true })
+    return () => window.removeEventListener('pointerdown', unlock)
+  }, [])
+
+  // Son quand une nouvelle commande arrive en cuisine.
+  useEffect(() => {
+    const fresh = orders.filter((o) => o.status === 'en_attente' && o.createdAt >= openedAt.current && !announced.current.has(o.id))
+    if (fresh.length === 0) return
+    fresh.forEach((o) => announced.current.add(o.id))
+    if (sound) void playDing().then((ok) => setBlocked(!ok))
+  }, [orders, sound])
+
+  async function toggleSound() {
+    const next = !sound
+    setSound(next)
+    try {
+      window.localStorage.setItem(SOUND_KEY, next ? 'on' : 'off')
+    } catch {
+      /* stockage indisponible */
+    }
+    // On joue un bip de test : on entend tout de suite que le son marche.
+    setBlocked(next ? !(await playDing()) : false)
+  }
 
   return (
     <>
@@ -67,16 +86,22 @@ export function KitchenScreen({
         actions={
           <button
             type="button"
-            onClick={() => setSound((s) => !s)}
+            onClick={toggleSound}
             aria-pressed={sound}
             aria-label={sound ? 'Désactiver le son des nouvelles commandes' : 'Activer le son des nouvelles commandes'}
             className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium hover:border-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
           >
             {sound ? <Volume2 className="size-4 text-ember" aria-hidden="true" /> : <VolumeX className="size-4" aria-hidden="true" />}
-            Son
+            {sound ? 'Son activé' : 'Son coupé'}
           </button>
         }
       />
+
+      {sound && blocked && (
+        <p role="status" className="mb-4 rounded-xl bg-gold/15 p-3 text-sm text-[#6b4510]">
+          Le navigateur bloque le son. Touchez l’écran ou le bouton « Son activé » pour l’autoriser.
+        </p>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
         {columns.map((col) => {
