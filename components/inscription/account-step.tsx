@@ -49,12 +49,15 @@ export function AccountStep({
   onSubmit,
 }: {
   defaultValues: AccountData | null
-  onSubmit: (data: AccountData) => void
+  /** Renvoie un message d'erreur à afficher, ou null si l'étape est validée. */
+  onSubmit: (data: AccountData) => Promise<string | null>
 }) {
   const [errors, setErrors] = useState<Errors>({})
   const [showPassword, setShowPassword] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState('')
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const get = (key: string) => String(form.get(key) ?? '')
@@ -73,7 +76,11 @@ export function AccountStep({
       document.getElementById(firstInvalid)?.focus()
       return
     }
-    onSubmit({ ...data, email: data.email.trim(), restaurant: data.restaurant.trim(), manager: data.manager.trim() })
+    setFormError('')
+    setSubmitting(true)
+    const failure = await onSubmit({ ...data, email: data.email.trim(), restaurant: data.restaurant.trim(), manager: data.manager.trim() })
+    setSubmitting(false)
+    if (failure) setFormError(failure)
   }
 
   const passwordToggle = (
@@ -202,7 +209,12 @@ export function AccountStep({
           </div>
 
           <div className="mt-3 flex flex-col items-center gap-5 sm:col-span-2">
-            <button type="submit" className={cn(primaryButton, 'w-full sm:w-auto sm:min-w-72')}>
+            {formError && (
+              <p role="alert" className="mb-3 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">
+                {formError}
+              </p>
+            )}
+            <button type="submit" disabled={submitting} className={cn(primaryButton, 'w-full disabled:opacity-70 sm:w-auto sm:min-w-72')}>
               Continuer
               <ArrowRight className="size-4" aria-hidden="true" />
             </button>

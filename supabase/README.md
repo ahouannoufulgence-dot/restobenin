@@ -11,6 +11,22 @@ sont appliqués **côté serveur**.
 2. Le client est dans `lib/supabase/client.ts` (`getSupabase()`).
 3. **Ne jamais** mettre la clé `service_role` ni le mot de passe de la base dans l'application.
 
+## Avancement du branchement de l'application
+
+| Partie | État |
+|---|---|
+| Connexion gérant / employé (e-mail + mot de passe), inscription avec e-mail confirmé, activation de l'accès employé | **Branché** |
+| Fiche du restaurant, paramètres, équipe, droits par fonction, abonnement et facture | **Branché** (écritures en arrière-plan, erreurs affichées, état rechargé depuis la base) |
+| Menu et photos | À brancher |
+| Commandes, cuisine, caisse, tables (temps réel) | À brancher |
+| Stocks | À brancher |
+| Espace client (QR code), suivi de commande et avis | À brancher |
+| Rapports | À brancher |
+| Super Admin | À brancher |
+
+Tant qu'une partie n'est pas branchée, elle utilise encore les données de démonstration enregistrées dans le navigateur.
+Ne pas s'en servir pour un vrai service avant que les parties « À brancher » soient terminées.
+
 ## Tables (schéma `public`)
 
 | Table | Rôle |

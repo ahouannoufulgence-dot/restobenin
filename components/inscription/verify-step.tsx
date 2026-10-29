@@ -8,12 +8,37 @@ export function VerifyStep({
   email,
   onEditEmail,
   onVerified,
+  onCheck,
+  onResend,
 }: {
   email: string
   onEditEmail: () => void
   onVerified: () => void
+  /** Vérifie que l'e-mail est confirmé. Renvoie un message d'erreur, ou null si tout est bon. */
+  onCheck: () => Promise<string | null>
+  onResend: () => Promise<string | null>
 }) {
   const [resentCount, setResentCount] = useState(0)
+  const [busy, setBusy] = useState<'check' | 'resend' | null>(null)
+  const [error, setError] = useState('')
+
+  async function check() {
+    setBusy('check')
+    setError('')
+    const failure = await onCheck()
+    setBusy(null)
+    if (failure) setError(failure)
+    else onVerified()
+  }
+
+  async function resend() {
+    setBusy('resend')
+    setError('')
+    const failure = await onResend()
+    setBusy(null)
+    if (failure) setError(failure)
+    else setResentCount((c) => c + 1)
+  }
 
   return (
     <section aria-labelledby="verify-title" className="mx-auto w-full max-w-xl">
@@ -37,17 +62,17 @@ export function VerifyStep({
           votre compte.
         </p>
 
-        <p className="mt-3 min-h-5 text-sm font-medium text-success" role="status">
-          {resentCount > 0 && 'Un nouvel e-mail de vérification vient d’être envoyé.'}
+        <p className={`mt-3 min-h-5 text-sm font-medium ${error ? 'text-destructive' : 'text-success'}`} role={error ? 'alert' : 'status'}>
+          {error || (resentCount > 0 && 'Un nouvel e-mail de vérification vient d’être envoyé.')}
         </p>
 
         <div className="mt-4 flex w-full flex-col gap-3 sm:w-auto">
-          <button type="button" onClick={() => setResentCount((c) => c + 1)} className={primaryButton}>
+          <button type="button" onClick={resend} disabled={busy !== null} className={primaryButton}>
             <RotateCw className="size-4" aria-hidden="true" />
             Renvoyer l&apos;e-mail
           </button>
-          <button type="button" onClick={onVerified} className={secondaryButton}>
-            J&apos;ai vérifié mon adresse
+          <button type="button" onClick={check} disabled={busy !== null} className={secondaryButton}>
+            {busy === 'check' ? 'Vérification…' : 'J’ai vérifié mon adresse'}
             <ArrowRight className="size-4" aria-hidden="true" />
           </button>
         </div>

@@ -42,7 +42,7 @@ export function PaymentStep({
   method: PaymentMethodId | null
   onMethodChange: (method: PaymentMethodId) => void
   onBack: () => void
-  onPaid: () => void
+  onPaid: () => Promise<string | null>
 }) {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,7 +65,14 @@ export function PaymentStep({
     }
     setError(null)
     setProcessing(true)
-    window.setTimeout(onPaid, 1600)
+    // Paiement simulé (aucun fournisseur branché) : on laisse l'écran de traitement quelques instants.
+    window.setTimeout(async () => {
+      const failure = await onPaid()
+      if (failure) {
+        setProcessing(false)
+        setError(failure)
+      }
+    }, 1600)
   }
 
   const rows = [

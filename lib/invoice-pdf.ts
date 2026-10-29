@@ -17,15 +17,19 @@ export function invoiceNumber(account: Pick<Account, 'createdAt'>, periodStart: 
 }
 
 /** Génère et télécharge la facture de la période d'abonnement en cours (PDF A4). */
-export async function exportInvoicePdf(account: Account, restaurantName: string, phone: string, demo: boolean) {
+export async function exportInvoicePdf(account: Account, restaurantName: string, phone: string, simulated: boolean) {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const W = 210
   const M = 18
   const plan = getPlan(account.planId)
-  const { start, next } = billingPeriod(account)
-  const number = invoiceNumber(account, start)
-  const total = amountDue(plan, account.billing)
+  // Mode base de données : on reprend la dernière facture enregistrée (même numéro, mêmes dates).
+  const saved = account.lastInvoice
+  const computed = billingPeriod(account)
+  const start = saved?.periodStart ?? computed.start
+  const next = saved?.periodEnd ?? computed.next
+  const number = saved?.number ?? invoiceNumber(account, start)
+  const total = saved?.amount ?? amountDue(plan, account.billing)
   const periodLabel = `Du ${day(start)} au ${day(next - 86_400_000)}`
 
   doc.setFillColor(...BRAND).rect(0, 0, W, 8, 'F')
@@ -91,7 +95,7 @@ export async function exportInvoicePdf(account: Account, restaurantName: string,
   doc.setDrawColor(...LINE).line(M, 276, W - M, 276)
   doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(...MUTED)
   doc.text(`${legal.company} · ${legal.address} · ${legal.email}`, M, 282)
-  if (demo) doc.text('Document généré en mode démonstration : aucun paiement réel n’a été effectué.', M, 287)
+  if (simulated) doc.text('Paiement simulé : aucun prélèvement réel n’a été effectué.', M, 287)
 
   doc.save(`facture-restoben-${number}.pdf`)
 }

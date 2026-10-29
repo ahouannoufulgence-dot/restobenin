@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { restaurant } from './client-data'
+import { api } from './supabase/api'
+import { background, getRemote, onRemoteReset } from './supabase/runtime'
 
 /**
  * Paramètres du restaurant, partagés entre l'espace gérant et l'espace client.
@@ -71,8 +73,35 @@ export function useSettings(): Settings {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
 
+// Mode base de données : le cache est rempli depuis Supabase (jamais depuis le navigateur) et vidé à la déconnexion.
+onRemoteReset(() => {
+  cache = null
+  emit()
+})
+
+/** Met en place les paramètres lus dans la base. */
+export function applyRemoteSettings(next: Settings) {
+  cache = next
+  emit()
+}
+
 /** Enregistre les paramètres. Renvoie false si le navigateur n'a plus de place. */
 export function saveSettings(next: Settings): boolean {
+  const remote = getRemote()
+  if (remote) {
+    cache = next
+    emit()
+    background('Enregistrement des paramètres', () =>
+      api.updateRestaurant(remote.restaurantId, {
+        name: next.restaurantName.trim(),
+        site_url: next.siteUrl,
+        address: next.address,
+        phone: next.phone,
+        receipt_footer: next.receiptFooter,
+      }),
+    )
+    return true
+  }
   try {
     window.localStorage.setItem(KEY, JSON.stringify(next))
   } catch {

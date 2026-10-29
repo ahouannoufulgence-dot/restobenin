@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react'
 import type { ManagerView } from './gerant-data'
 import type { EmployeeRole } from './employees-store'
+import { api } from './supabase/api'
+import { background, getRemote, onRemoteReset } from './supabase/runtime'
 
 /**
  * Droits d'accès par fonction (gérant, chef, cuisinier, serveur, caissier, stockiste).
@@ -123,13 +125,44 @@ export function usePermissionOverrides(): Overrides {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
 
+onRemoteReset(() => {
+  cache = null
+  emit()
+})
+
+/** Met en place les droits lus dans la base. */
+export function applyRemotePermissions(next: Overrides) {
+  cache = next
+  emit()
+}
+
+const toRow = (restaurantId: string, role: EmployeeRole, p: RolePermissions) => ({
+  restaurant_id: restaurantId,
+  role,
+  views: p.views,
+  create_orders: p.createOrders,
+  edit_menu: p.editMenu,
+  home: p.home,
+})
+
 export const permissionsActions = {
   set(role: EmployeeRole, permissions: RolePermissions) {
     if (role === 'gerant') return false // le gérant garde tous les droits
-    return commit({ ...getSnapshot(), [role]: permissions })
+    const remote = getRemote()
+    if (!remote) return commit({ ...getSnapshot(), [role]: permissions })
+    cache = { ...getSnapshot(), [role]: permissions }
+    emit()
+    background('Enregistrement des droits', () => api.upsertPermissions([toRow(remote.restaurantId, role, permissions)]))
+    return true
   },
   reset() {
-    return commit({})
+    const remote = getRemote()
+    if (!remote) return commit({})
+    cache = {}
+    emit()
+    // Retour aux droits par défaut : on réécrit les valeurs par défaut (une fonction sans ligne n'aurait aucun accès).
+    background('Rétablissement des droits', () => api.upsertPermissions(editableRoles.map((r) => toRow(remote.restaurantId, r, DEFAULT_PERMISSIONS[r]))))
+    return true
   },
 }
 

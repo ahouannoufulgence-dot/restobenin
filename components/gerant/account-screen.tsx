@@ -28,12 +28,12 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { type Account, billingPeriod, updateAccount } from '@/lib/account-store'
-import { DEMO_AUTH } from '@/lib/auth'
+import { type Account, billingPeriod, changePlan, updateAccount } from '@/lib/account-store'
 import type { ManagerView } from '@/lib/gerant-data'
 import { exportInvoicePdf } from '@/lib/invoice-pdf'
 import {
   ANNUAL_DISCOUNT,
+  PAYMENTS_SIMULATED,
   type Billing,
   type PlanId,
   amountDue,
@@ -150,7 +150,7 @@ export function AccountScreen({
     setInvoiceBusy(true)
     setNotice('')
     try {
-      await exportInvoicePdf(shown, restaurantName, phone, DEMO_AUTH)
+      await exportInvoicePdf(shown, restaurantName, phone, PAYMENTS_SIMULATED)
     } catch {
       setNotice('Impossible de générer la facture. Réessayez.')
     } finally {
@@ -404,6 +404,7 @@ export function AccountScreen({
 function PlanDialog({ account, targetId, memberCount, onClose, onDone }: { account: Account; targetId: PlanId; memberCount: number; onClose: () => void; onDone: (message: string) => void }) {
   const [billing, setBilling] = useState<Billing>(account.billing)
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const target = getPlan(targetId)
   const current = getPlan(account.planId)
   const up = plans.findIndex((p) => p.id === targetId) > plans.findIndex((p) => p.id === account.planId)
@@ -411,9 +412,12 @@ function PlanDialog({ account, targetId, memberCount, onClose, onDone }: { accou
   const tooMany = limit !== null && memberCount > limit
   const nextDate = billingPeriod({ createdAt: Date.now(), billing }).next
 
-  function confirm() {
+  async function confirm() {
     if (tooMany) return setError(`Votre équipe compte ${memberCount} membres, la formule ${target.name} en autorise ${limit}. Retirez des membres dans Employés avant de changer.`)
-    if (!updateAccount({ planId: targetId, billing, planChangedAt: Date.now() })) return setError('Enregistrement impossible : le stockage du navigateur est plein.')
+    setBusy(true)
+    const result = await changePlan(targetId, billing)
+    setBusy(false)
+    if (!result.ok) return setError(result.error)
     onDone(`Votre formule est maintenant ${target.name}.`)
   }
 
@@ -457,7 +461,7 @@ function PlanDialog({ account, targetId, memberCount, onClose, onDone }: { accou
       <p className="mt-3 text-sm text-muted-foreground">
         Paiement via {account.paymentMethod}. Le nouveau tarif s’applique dès aujourd’hui ; prochain paiement le {day(nextDate)}.
       </p>
-      {DEMO_AUTH && <p className="mt-3 rounded-xl bg-gold/15 p-3 text-xs leading-relaxed text-[#6b4510]">Mode démonstration : aucun paiement réel n’est effectué.</p>}
+      {PAYMENTS_SIMULATED && <p className="mt-3 rounded-xl bg-gold/15 p-3 text-xs leading-relaxed text-[#6b4510]">Paiement simulé : aucun prélèvement réel n’est effectué pour le moment.</p>}
       {error && (
         <p role="alert" className="mt-3 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">
           {error}
@@ -465,8 +469,8 @@ function PlanDialog({ account, targetId, memberCount, onClose, onDone }: { accou
       )}
 
       <div className="mt-5 grid gap-2">
-        <button type="button" onClick={confirm} className={cn('inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-b from-ember to-ember-deep text-base font-semibold text-primary-foreground shadow-lg shadow-ember-deep/25', focusRing)}>
-          Confirmer le passage à {target.name}
+        <button type="button" onClick={confirm} disabled={busy} className={cn('inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-b from-ember to-ember-deep text-base font-semibold text-primary-foreground shadow-lg shadow-ember-deep/25 disabled:opacity-70', focusRing)}>
+          {busy ? 'Enregistrement…' : `Confirmer le passage à ${target.name}`}
         </button>
         <button type="button" onClick={onClose} className={cn('h-11 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground', focusRing)}>
           Annuler

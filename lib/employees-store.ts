@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react'
+import { api, uploadDataUrl } from './supabase/api'
+import { background, getRemote, onRemoteReset } from './supabase/runtime'
 
 /**
  * Équipe du restaurant (module « Employés » de l'espace gérant).
@@ -148,21 +150,63 @@ export function findEmployee(identifier: string): Employee | undefined {
   return key.length === 8 ? getSnapshot().find((e) => phoneKey(e.phone) === key) : undefined
 }
 
+onRemoteReset(() => {
+  cache = null
+  emit()
+})
+
+/** Met en place l'équipe lue dans la base. */
+export function applyRemoteEmployees(list: Employee[]) {
+  cache = list
+  emit()
+}
+
+/** Enregistre la nouvelle liste dans le cache (mode base de données : rien n'est écrit dans le navigateur). */
+function commitRemote(next: Employee[]) {
+  cache = next
+  emit()
+  return true
+}
+
 export const employeesActions = {
   /** Ajoute l'employé, ou met à jour celui qui a le même id. */
   save(employee: Employee) {
     const list = getSnapshot()
     const exists = list.some((e) => e.id === employee.id)
-    return commit(exists ? list.map((e) => (e.id === employee.id ? employee : e)) : [...list, employee])
+    const next = exists ? list.map((e) => (e.id === employee.id ? employee : e)) : [...list, employee]
+    const remote = getRemote()
+    if (!remote) return commit(next)
+    commitRemote(next)
+    background(exists ? 'Modification de l’employé' : 'Ajout de l’employé', async () => {
+      // Photo choisie sur cet appareil : envoyée dans le stockage, la base ne garde que son chemin.
+      let photoPath: string | null | undefined
+      if (employee.photo?.startsWith('data:')) photoPath = await uploadDataUrl(remote.restaurantId, 'staff', employee.id, employee.photo)
+      else if (!employee.photo) photoPath = null
+      const row: Record<string, unknown> = {
+        name: employee.name,
+        role: employee.role,
+        phone: employee.phone,
+        email: employee.email.trim().toLowerCase(),
+        status: employee.status,
+        ...(photoPath !== undefined ? { photo_path: photoPath } : {}),
+      }
+      return exists ? api.updateStaff(employee.id, row) : api.insertStaff({ id: employee.id, restaurant_id: remote.restaurantId, ...row })
+    })
+    return true
   },
   /** Remplace toute l'équipe (utilisé à l'inscription : le responsable devient le premier membre). */
   replaceAll(list: Employee[]) {
     return commit(list)
   },
   remove(id: string) {
-    return commit(getSnapshot().filter((e) => e.id !== id))
+    const next = getSnapshot().filter((e) => e.id !== id)
+    if (!getRemote()) return commit(next)
+    commitRemote(next)
+    background('Suppression de l’employé', () => api.deleteStaff(id))
+    return true
   },
   newId() {
-    return `e-${Date.now().toString(36)}`
+    // Mode base de données : un vrai identifiant unique (la base en exige un).
+    return getRemote() ? crypto.randomUUID() : `e-${Date.now().toString(36)}`
   },
 }

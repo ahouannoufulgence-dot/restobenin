@@ -51,6 +51,9 @@ export const plans: Plan[] = [
   },
 ]
 
+/** Tant qu'aucun fournisseur de paiement (Mobile Money, carte…) n'est branché, les paiements d'abonnement sont simulés. */
+export const PAYMENTS_SIMULATED = true
+
 /** Quatre points forts par formule (écran Abonnement). */
 export const planHighlights: Record<PlanId, string[]> = {
   basique: ['Commandes & paiements', 'Stocks basiques', '5 membres d’équipe', 'Support e-mail'],

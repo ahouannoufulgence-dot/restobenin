@@ -5,7 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { firstName as firstNameOf, useAccount } from '@/lib/account-store'
 import { getPlan, teamLimits } from '@/lib/plans'
-import { getSession, signOut, type Session } from '@/lib/auth'
+import { getSession, restoreRemoteSession, signOut, type Session } from '@/lib/auth'
+import { supabaseConfigured } from '@/lib/supabase/client'
+import { hydrate } from '@/lib/supabase/hydrate'
+import { clearSyncError, isRemote, useHydration, useSyncError } from '@/lib/supabase/runtime'
 import { findEmployee, useEmployees } from '@/lib/employees-store'
 import { accessFor, usePermissionOverrides } from '@/lib/permissions'
 import { summarize, useStock } from '@/lib/stock-store'
@@ -51,11 +54,34 @@ export function ManagerApp() {
   const account = useAccount()
   const overrides = usePermissionOverrides()
 
+  const hydration = useHydration()
+  const syncError = useSyncError()
+
   useEffect(() => {
-    const current = getSession()
+    let current = getSession()
+    // Base de données : une session sans restaurant (ancienne session de démonstration) n'ouvre rien.
+    if (supabaseConfigured && current && !current.restaurantId) {
+      signOut()
+      current = null
+    }
     if (!current) router.replace('/connexion')
     setSession(current)
   }, [router])
+
+  // Après un rechargement de la page : on vérifie la connexion puis on recharge les données du restaurant.
+  useEffect(() => {
+    if (!supabaseConfigured || !session?.restaurantId || isRemote()) return
+    let cancelled = false
+    void restoreRemoteSession().then((ok) => {
+      if (cancelled || ok) return
+      if (!getSession()) return
+      signOut()
+      router.replace('/connexion')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [session, router])
 
   // Droits : le gérant a tout ; un employé a les droits de sa fonction (relue dans la liste d'équipe,
   // donc un changement de fonction ou un congé s'applique tout de suite).
@@ -97,6 +123,28 @@ export function ManagerApp() {
   }, [noHome, access.home])
 
   if (session === undefined || session === null) return null
+
+  // Base de données : on attend les données du restaurant avant d'afficher quoi que ce soit.
+  if (supabaseConfigured && hydration !== 'ready') {
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-background px-6">
+        <div className="w-full max-w-sm text-center" role="status">
+          {hydration === 'error' ? (
+            <>
+              <h1 className="font-serif text-2xl font-semibold">Chargement impossible</h1>
+              <p className="mt-2 text-sm text-muted-foreground">{syncError ?? 'Vérifiez votre connexion Internet.'}</p>
+              <div className="mt-5 grid gap-2">
+                <button type="button" onClick={() => { clearSyncError(); void hydrate() }} className="h-12 rounded-xl bg-ember-deep text-sm font-semibold text-primary-foreground">Réessayer</button>
+                <Link href="/connexion" onClick={signOut} className="inline-flex h-11 items-center justify-center text-sm font-semibold text-muted-foreground hover:text-foreground">Se déconnecter</Link>
+              </div>
+            </>
+          ) : (
+            <p className="font-serif text-xl text-muted-foreground">Chargement de votre restaurant…</p>
+          )}
+        </div>
+      </main>
+    )
+  }
 
   if (suspended) {
     return (
@@ -161,6 +209,12 @@ export function ManagerApp() {
 
   return (
     <div className="min-h-dvh bg-background lg:flex">
+      {syncError && (
+        <div role="alert" className="fixed inset-x-0 top-0 z-50 flex items-start gap-3 bg-destructive px-4 py-3 text-sm font-medium text-white shadow-lg">
+          <span className="min-w-0 flex-1">{syncError}</span>
+          <button type="button" onClick={clearSyncError} className="shrink-0 rounded-md px-2 py-0.5 font-semibold underline">Fermer</button>
+        </div>
+      )}
       <Sidebar current={navCurrent} onNavigate={navigate} badges={badges} restaurantName={settings.restaurantName} subtitle={establishmentLine} hidden={hiddenInSidebar} />
       <main className="flex-1 pb-36 lg:pb-12">
         <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">

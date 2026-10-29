@@ -4,6 +4,8 @@ import { Phone } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { type Billing, type PlanId, getPlan } from '@/lib/plans'
 import { type AccountData, AccountStep } from './account-step'
+import { checkEmailConfirmed, resendConfirmation, signUpAccount } from '@/lib/auth'
+import { supabaseConfigured } from '@/lib/supabase/client'
 import { completeSignup } from '@/lib/signup-complete'
 import { type PaymentMethodId, PaymentStep, paymentMethodLabels } from './payment-step'
 import { PlanStep } from './plan-step'
@@ -42,14 +44,29 @@ export function SignupFlow({ initialPlan }: { initialPlan?: PlanId }) {
           {step === 1 && (
             <AccountStep
               defaultValues={account}
-              onSubmit={(data) => {
+              onSubmit={async (data) => {
+                if (!supabaseConfigured) {
+                  setAccount(data)
+                  goTo(2)
+                  return null
+                }
+                // Base de données : vrai compte de connexion. Si l'e-mail est déjà confirmé (inscription reprise), on saute la vérification.
+                const result = await signUpAccount(data.email, data.password, data.manager)
+                if (!result.ok) return result.error
                 setAccount(data)
-                goTo(2)
+                goTo(result.verified ? 3 : 2)
+                return null
               }}
             />
           )}
           {step === 2 && account && (
-            <VerifyStep email={account.email} onEditEmail={() => goTo(1)} onVerified={() => goTo(3)} />
+            <VerifyStep
+              email={account.email}
+              onEditEmail={() => goTo(1)}
+              onVerified={() => goTo(3)}
+              onCheck={() => (supabaseConfigured ? checkEmailConfirmed(account.email, account.password) : Promise.resolve(null))}
+              onResend={() => (supabaseConfigured ? resendConfirmation(account.email) : Promise.resolve(null))}
+            />
           )}
           {step === 3 && (
             <PlanStep
@@ -72,9 +89,11 @@ export function SignupFlow({ initialPlan }: { initialPlan?: PlanId }) {
               method={method}
               onMethodChange={setMethod}
               onBack={() => goTo(3)}
-              onPaid={() => {
-                completeSignup(account, planId, billing, method ? paymentMethodLabels[method] : 'Non précisé')
+              onPaid={async () => {
+                const failure = await completeSignup(account, planId, billing, method ? paymentMethodLabels[method] : 'Non précisé')
+                if (failure) return failure
                 goTo(5)
+                return null
               }}
             />
           )}

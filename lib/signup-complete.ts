@@ -1,6 +1,9 @@
 import type { AccountData } from '@/components/inscription/account-step'
 import { type Account, formatPhoneBJ, saveAccount } from './account-store'
 import { openSession } from './auth'
+import { getSupabase, supabaseConfigured } from './supabase/client'
+import { hydrate } from './supabase/hydrate'
+import { friendlyError, resetRemote, setRemote } from './supabase/runtime'
 import { employeesActions } from './employees-store'
 import type { Billing, PlanId } from './plans'
 import { getSettings, saveSettings } from './settings-store'
@@ -13,7 +16,39 @@ import { getSettings, saveSettings } from './settings-store'
  *  - session → le responsable est connecté à son espace.
  * Le mot de passe saisi n'est conservé nulle part.
  */
-export function completeSignup(data: AccountData, planId: PlanId, billing: Billing, paymentMethod: string): boolean {
+export async function completeSignup(data: AccountData, planId: PlanId, billing: Billing, paymentMethod: string): Promise<string | null> {
+  if (supabaseConfigured) return completeRemoteSignup(data, planId, billing, paymentMethod)
+  return completeLocalSignup(data, planId, billing, paymentMethod) ? null : 'Enregistrement impossible : le stockage du navigateur est plein.'
+}
+
+/** Mode base de données : la fonction `create_restaurant` crée tout (restaurant, gérant, droits, tables, facture). */
+async function completeRemoteSignup(data: AccountData, planId: PlanId, billing: Billing, paymentMethod: string): Promise<string | null> {
+  const sb = getSupabase()
+  const { data: userData } = await sb.auth.getUser()
+  const user = userData.user
+  if (!user) return 'Votre session a expiré. Reconnectez-vous puis reprenez l’inscription.'
+  const { data: restaurantId, error } = await sb.rpc('create_restaurant', {
+    p_name: data.restaurant.trim().replace(/\s+/g, ' '),
+    p_establishment: data.establishment,
+    p_manager: data.manager.trim().replace(/\s+/g, ' '),
+    p_phone: formatPhoneBJ(data.phone),
+    p_plan_id: planId,
+    p_billing: billing,
+    p_payment_method: paymentMethod,
+  })
+  if (error || !restaurantId) return friendlyError(error?.message)
+  const { data: me, error: meError } = await sb.from('staff').select('id').eq('restaurant_id', restaurantId).eq('user_id', user.id).single()
+  if (meError || !me) return 'Votre restaurant est créé, mais le chargement a échoué. Connectez-vous pour continuer.'
+  setRemote({ restaurantId: restaurantId as string, userId: user.id, staffId: me.id as string })
+  if (!(await hydrate())) {
+    resetRemote()
+    return 'Votre restaurant est créé, mais le chargement a échoué. Connectez-vous pour continuer.'
+  }
+  openSession({ identifier: user.email ?? data.email.trim().toLowerCase(), role: 'gerant', name: data.manager.trim(), at: Date.now(), restaurantId: restaurantId as string, staffId: me.id as string }, true)
+  return null
+}
+
+function completeLocalSignup(data: AccountData, planId: PlanId, billing: Billing, paymentMethod: string): boolean {
   const account: Account = {
     restaurant: data.restaurant.trim().replace(/\s+/g, ' '),
     manager: data.manager.trim().replace(/\s+/g, ' '),

@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Check, Eye, EyeOff, Flame, Lock, Mail, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DEMO_AUTH, MIN_PASSWORD, isValidIdentifier, signIn, type Role } from '@/lib/auth'
+import { DEMO_AUTH, MIN_PASSWORD, activateEmployee, isValidEmail, isValidIdentifier, signIn, type Role } from '@/lib/auth'
+import { supabaseConfigured } from '@/lib/supabase/client'
 import { legal } from '@/lib/legal-info'
 
 const fieldBase =
@@ -27,11 +28,14 @@ export function LoginForm() {
   const [errors, setErrors] = useState<{ identifier?: string; password?: string; form?: string }>({})
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
+  // Première connexion d'un employé (mode base de données) : il crée son mot de passe.
+  const [activating, setActivating] = useState(false)
   const identifierRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
 
   function chooseRole(next: Role) {
     setRole(next)
+    setActivating(false)
     setErrors({})
     setInfo('')
   }
@@ -40,15 +44,24 @@ export function LoginForm() {
     e.preventDefault()
     setInfo('')
     const next: typeof errors = {}
-    if (!identifier.trim()) next.identifier = 'Indiquez votre adresse e-mail ou votre téléphone.'
-    else if (!isValidIdentifier(identifier)) next.identifier = 'Saisissez une adresse e-mail ou un numéro de téléphone valide.'
-    if (!password) next.password = 'Indiquez votre mot de passe.'
-    else if (password.length < MIN_PASSWORD) next.password = `Le mot de passe contient au moins ${MIN_PASSWORD} caractères.`
+    if (!identifier.trim()) next.identifier = supabaseConfigured ? 'Indiquez votre adresse e-mail.' : 'Indiquez votre adresse e-mail ou votre téléphone.'
+    else if (supabaseConfigured ? !isValidEmail(identifier) : !isValidIdentifier(identifier)) next.identifier = supabaseConfigured ? 'Saisissez une adresse e-mail valide.' : 'Saisissez une adresse e-mail ou un numéro de téléphone valide.'
+    const minLength = supabaseConfigured && activating ? 8 : MIN_PASSWORD
+    if (!password) next.password = activating ? 'Choisissez un mot de passe.' : 'Indiquez votre mot de passe.'
+    else if (password.length < minLength) next.password = `Le mot de passe contient au moins ${minLength} caractères.`
     setErrors(next)
     if (next.identifier) return identifierRef.current?.focus()
     if (next.password) return passwordRef.current?.focus()
 
     setBusy(true)
+    if (activating) {
+      const activated = await activateEmployee(identifier, password)
+      setBusy(false)
+      if (!activated.ok) return setErrors({ form: activated.error })
+      setActivating(false)
+      setPassword('')
+      return setInfo('Accès créé. Un e-mail de confirmation vient de vous être envoyé : cliquez sur le lien, puis connectez-vous ici.')
+    }
     const result = await signIn(identifier, password, remember, role)
     if (!result.ok) {
       setBusy(false)
@@ -147,7 +160,7 @@ export function LoginForm() {
                   spellCheck={false}
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="Adresse e-mail ou Téléphone"
+                  placeholder={supabaseConfigured ? 'Adresse e-mail' : 'Adresse e-mail ou Téléphone'}
                   aria-invalid={!!errors.identifier}
                   aria-describedby={errors.identifier ? 'login-identifier-error' : undefined}
                   className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
@@ -232,10 +245,26 @@ export function LoginForm() {
               disabled={busy}
               className="mt-1 inline-flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-b from-ember to-ember-deep font-serif text-2xl font-medium text-primary-foreground shadow-lg shadow-ember-deep/30 transition-colors hover:from-ember-deep hover:to-ember-deep focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40 disabled:opacity-70"
             >
-              {busy ? 'Connexion…' : 'Se connecter'}
+              {busy ? (activating ? 'Création…' : 'Connexion…') : activating ? 'Activer mon accès' : 'Se connecter'}
               {!busy && <ArrowRight className="size-6" aria-hidden="true" />}
             </button>
           </form>
+
+          {supabaseConfigured && role === 'employe' && (
+            <p className="mt-4 text-center text-sm text-foreground/85">
+              <button
+                type="button"
+                onClick={() => {
+                  setActivating((a) => !a)
+                  setErrors({})
+                  setInfo('')
+                }}
+                className="font-semibold text-ember-deep hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+              >
+                {activating ? 'J’ai déjà un accès : me connecter' : 'Première connexion ? Activer mon accès'}
+              </button>
+            </p>
+          )}
 
           <p className="mt-5 text-center text-sm text-foreground/85">
             {role === 'gerant' ? 'Vous êtes employé ? Utilisez l’onglet ' : 'Vous êtes gérant ? Utilisez l’onglet '}

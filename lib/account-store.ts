@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { Billing, PlanId } from './plans'
+import { api } from './supabase/api'
+import { background, friendlyError, getRemote, onRemoteReset, rehydrate } from './supabase/runtime'
 
 /**
  * Compte du restaurant : les informations saisies à l'inscription (nom, responsable, coordonnées,
@@ -23,6 +25,8 @@ export type Account = {
   createdAt: number
   /** Date du dernier changement de formule (sinon la date d'inscription). */
   planChangedAt?: number
+  /** Dernière facture enregistrée en base (mode base de données). */
+  lastInvoice?: { number: string; periodStart: number; periodEnd: number; amount: number }
 }
 
 const KEY = 'restoben:account:v1'
@@ -107,10 +111,42 @@ export function saveAccount(account: Account): boolean {
   return true
 }
 
-/** Met à jour le compte enregistré (formule, mode de paiement…). Renvoie false s'il n'y a pas de compte. */
+onRemoteReset(() => {
+  cache = undefined
+  emit()
+})
+
+/** Met en place le compte construit depuis la base (restaurant + fiche du responsable + dernière facture). */
+export function applyRemoteAccount(next: Account) {
+  cache = next
+  emit()
+}
+
+/** Met à jour le compte enregistré (mode de paiement…). Renvoie false s'il n'y a pas de compte. */
 export function updateAccount(patch: Partial<Account>): boolean {
   const current = getAccount()
-  return current ? saveAccount({ ...current, ...patch }) : false
+  if (!current) return false
+  const remote = getRemote()
+  if (!remote) return saveAccount({ ...current, ...patch })
+  cache = { ...current, ...patch }
+  emit()
+  if (patch.paymentMethod) {
+    const method = patch.paymentMethod
+    background('Mise à jour du moyen de paiement', () => api.updatePaymentMethod(remote.restaurantId, method))
+  }
+  return true
+}
+
+/** Changement de formule. En mode base de données, la base refuse si l'équipe dépasse la limite de la nouvelle formule. */
+export async function changePlan(planId: PlanId, billing: Billing): Promise<{ ok: true } | { ok: false; error: string }> {
+  const remote = getRemote()
+  if (!remote) {
+    return updateAccount({ planId, billing, planChangedAt: Date.now() }) ? { ok: true } : { ok: false, error: 'Enregistrement impossible : le stockage du navigateur est plein.' }
+  }
+  const { error } = await api.changePlan(remote.restaurantId, planId, billing)
+  if (error) return { ok: false, error: friendlyError(error.message) }
+  await rehydrate()
+  return { ok: true }
 }
 
 const addPeriod = (from: Date, billing: Account['billing']) => {
