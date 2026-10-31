@@ -78,15 +78,21 @@ export function SuperAdminPage({ title, current, children }: { title: string; cu
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const session = getSuperAdminSession()
-    if (!session) {
-      router.replace('/superadmin/connexion')
-      return
+    let cancelled = false
+    void getSuperAdminSession().then((session) => {
+      if (cancelled) return
+      if (!session) {
+        router.replace('/superadmin/connexion')
+        return
+      }
+      setIdentifier(session.identifier)
+      const d = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      setToday(d.charAt(0).toUpperCase() + d.slice(1))
+      setReady(true)
+    })
+    return () => {
+      cancelled = true
     }
-    setIdentifier(session.identifier)
-    const d = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-    setToday(d.charAt(0).toUpperCase() + d.slice(1))
-    setReady(true)
   }, [router])
 
   useEffect(() => {

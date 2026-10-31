@@ -6,7 +6,10 @@ import { ArrowRight, Building2, ChevronRight, CreditCard, EllipsisVertical, Eye,
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fcfa } from '@/lib/gerant-data'
-import { demoKpis, demoRestaurants, periodOptions, signupSeries, type DemoRestaurant } from '@/lib/superadmin-demo'
+import { demoKpis, demoRestaurants, demoSignups12, periodOptions } from '@/lib/superadmin-demo'
+import { DEMO_SUPERADMIN } from '@/lib/superadmin-auth'
+import { loadAdminData, signupSeriesFrom, type AdminData, type Overview, type RestaurantRow, type RestaurantStatus } from '@/lib/superadmin-data'
+import { friendlyError } from '@/lib/supabase/runtime'
 
 const card = 'rounded-2xl border border-border bg-card shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)]'
 const num = (n: number) => n.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ')
@@ -30,17 +33,16 @@ function Kpi({ icon: Icon, label, children, spark }: { icon: LucideIcon; label: 
   )
 }
 
-function PlanPill({ plan }: { plan: DemoRestaurant['plan'] }) {
+function PlanPill({ plan }: { plan: string }) {
   return <span className={cn('inline-flex rounded-md px-2.5 py-1 text-xs font-medium', plan === 'Premium' ? 'bg-[#fbe3cf] text-[#b8541f]' : 'bg-[#efe6dc] text-foreground/75')}>{plan}</span>
 }
 
-function StatusPill({ status }: { status: DemoRestaurant['status'] }) {
+function StatusPill({ status }: { status: RestaurantStatus }) {
   return <span className={cn('inline-flex rounded-md px-2.5 py-1 text-xs font-semibold', status === 'Actif' ? 'bg-success/15 text-success' : 'bg-destructive text-white')}>{status}</span>
 }
 
-function fmtDate(daysAgo: number) {
-  const d = new Date()
-  d.setDate(d.getDate() - daysAgo)
+function fmtDate(iso: string) {
+  const d = new Date(iso)
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '')
 }
 
@@ -51,9 +53,10 @@ function SignupsChart({ series }: { series: { label: string; value: number }[] }
   const right = 14
   const top = 22
   const bottom = 34
-  const max = Math.max(...series.map((s) => s.value), 20)
-  const ymax = Math.ceil(max / 20) * 20
-  const ticks = Array.from({ length: ymax / 20 + 1 }, (_, i) => i * 20)
+  const max = Math.max(...series.map((s) => s.value), 1)
+  const step = max <= 6 ? 1 : max <= 12 ? 2 : max <= 30 ? 5 : 20
+  const ymax = Math.max(Math.ceil(max / step) * step, step * 3)
+  const ticks = Array.from({ length: ymax / step + 1 }, (_, i) => i * step)
   const x = (i: number) => left + (series.length === 1 ? 0 : (i / (series.length - 1)) * (W - left - right))
   const y = (v: number) => top + (1 - v / ymax) * (H - top - bottom)
   const pts = series.map((s, i) => [x(i), y(s.value)] as const)
@@ -97,20 +100,21 @@ function SignupsChart({ series }: { series: { label: string; value: number }[] }
   )
 }
 
-function Detail({ restaurant, onClose }: { restaurant: DemoRestaurant; onClose: () => void }) {
+function Detail({ restaurant, onClose }: { restaurant: RestaurantRow; onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
   const rows: [string, React.ReactNode][] = [
-    ['Ville', restaurant.city],
+    ['Adresse', restaurant.address],
     ['Gérant', restaurant.owner],
     ['Formule', <PlanPill key="p" plan={restaurant.plan} />],
+    ['Facturation', restaurant.billing],
     ['Statut', <StatusPill key="s" status={restaurant.status} />],
-    ['Inscrit le', fmtDate(restaurant.daysAgo)],
+    ['Inscrit le', fmtDate(restaurant.createdAt)],
     ['Tables', String(restaurant.tables)],
-    ['Ventes du mois', fcfa(restaurant.monthlyRevenue)],
+    ...(restaurant.monthlyRevenue !== undefined ? ([['Ventes du mois', fcfa(restaurant.monthlyRevenue)]] as [string, React.ReactNode][]) : []),
   ]
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-espresso/60 md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={`Fiche de ${restaurant.name}`}>
@@ -129,18 +133,55 @@ function Detail({ restaurant, onClose }: { restaurant: DemoRestaurant; onClose: 
             </div>
           ))}
         </dl>
-        <p className="mt-4 text-xs text-muted-foreground">Données fictives (maquette).</p>
+        {DEMO_SUPERADMIN && <p className="mt-4 text-xs text-muted-foreground">Données fictives (maquette).</p>}
       </div>
     </div>
   )
 }
 
+const emptyOverview: Overview = { restaurants: 0, activeSubscriptions: 0, newThisMonth: 0, openTickets: 0, monthlyRevenue: 0, signups12: Array(12).fill(0) }
+
+/** Mode démonstration : les données fictives, mises au même format que les données réelles. */
+function demoData(): AdminData {
+  return {
+    overview: { ...demoKpis, signups12: demoSignups12 },
+    recent: demoRestaurants.map((r) => ({
+      id: r.id,
+      name: r.name,
+      address: r.city,
+      plan: r.plan,
+      status: r.status,
+      billing: 'Mensuel' as const,
+      createdAt: new Date(Date.now() - r.daysAgo * 86_400_000).toISOString(),
+      owner: r.owner,
+      tables: r.tables,
+      monthlyRevenue: r.monthlyRevenue,
+    })),
+  }
+}
+
 export function SuperAdminDashboard() {
   const [months, setMonths] = useState<number>(7)
-  const [detail, setDetail] = useState<DemoRestaurant | null>(null)
+  const [detail, setDetail] = useState<RestaurantRow | null>(null)
   const [notice, setNotice] = useState('')
+  const [data, setData] = useState<AdminData | null>(() => (DEMO_SUPERADMIN ? demoData() : null))
+  const [error, setError] = useState('')
   const timer = useRef<number | undefined>(undefined)
-  const series = useMemo(() => signupSeries(months), [months])
+
+  useEffect(() => {
+    if (DEMO_SUPERADMIN) return
+    let off = false
+    loadAdminData()
+      .then((d) => !off && setData(d))
+      .catch((e: unknown) => !off && setError(friendlyError(e instanceof Error ? e.message : String(e))))
+    return () => {
+      off = true
+    }
+  }, [])
+
+  const kpis = data?.overview ?? emptyOverview
+  const restaurants = data?.recent ?? []
+  const series = useMemo(() => signupSeriesFrom(kpis.signups12, months), [kpis.signups12, months])
 
   function soon(what: string) {
     setNotice(`${what} sera disponible avec la base de données (maquette).`)
@@ -151,25 +192,36 @@ export function SuperAdminDashboard() {
   const quick: { label: string; href: string; icon: LucideIcon; extra?: string }[] = [
     { label: 'Voir tous les restaurants', href: '/superadmin/restaurants', icon: Building2 },
     { label: 'Gérer les abonnements', href: '/superadmin/abonnements', icon: CreditCard },
-    { label: 'Tickets support ouverts', href: '/superadmin/support', icon: Headset, extra: `(${demoKpis.openTickets})` },
+    { label: 'Tickets support ouverts', href: '/superadmin/support', icon: Headset, extra: `(${kpis.openTickets})` },
   ]
 
   return (
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={Building2} label="Total Restaurants">
-          {num(demoKpis.restaurants)}
+          {num(kpis.restaurants)}
         </Kpi>
         <Kpi icon={CreditCard} label="Abonnements Actifs">
-          {num(demoKpis.activeSubscriptions)}
+          {num(kpis.activeSubscriptions)}
         </Kpi>
         <Kpi icon={TrendingUp} label="Revenu Mensuel">
-          <span className="whitespace-nowrap text-xl"><span>{num(demoKpis.monthlyRevenue)}</span> <span className="font-sans text-sm font-medium">FCFA</span></span>
+          <span className="whitespace-nowrap text-xl"><span>{num(kpis.monthlyRevenue)}</span> <span className="font-sans text-sm font-medium">FCFA</span></span>
         </Kpi>
         <Kpi icon={Users} label="Nouveaux ce mois" spark>
-          +{demoKpis.newThisMonth}
+          +{kpis.newThisMonth}
         </Kpi>
       </div>
+
+      {error && (
+        <p role="alert" className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">
+          Impossible de charger les données : {error}
+        </p>
+      )}
+      {!data && !error && (
+        <p role="status" className="mt-4 text-sm text-muted-foreground">
+          Chargement des données…
+        </p>
+      )}
 
       {notice && (
         <p role="status" className="mt-4 rounded-xl bg-gold/15 p-3 text-sm text-[#6b4510]">
@@ -189,12 +241,14 @@ export function SuperAdminDashboard() {
             </Link>
           </div>
 
+          {data && restaurants.length === 0 && <p className="px-5 py-8 text-center text-sm text-muted-foreground">Aucun restaurant pour le moment.</p>}
+
           {/* Tableau (tablette et ordinateur) */}
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className="text-xs text-foreground/80">
-                  {['Nom du restaurant', 'Ville', 'Plan', 'Statut', 'Date d’inscription', 'Actions'].map((h) => (
+                  {['Nom du restaurant', 'Adresse', 'Plan', 'Statut', 'Date d’inscription', 'Actions'].map((h) => (
                     <th key={h} scope="col" className="px-3 py-3 font-medium first:pl-5 last:pr-5">
                       {h}
                     </th>
@@ -202,30 +256,34 @@ export function SuperAdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border border-t border-border">
-                {demoRestaurants.map((r) => (
+                {restaurants.map((r) => (
                   <tr key={r.id}>
                     <th scope="row" className="py-4 pl-5 pr-3 font-medium">
                       {r.name}
                     </th>
-                    <td className="whitespace-nowrap px-3 py-4">{r.city}</td>
+                    <td className="whitespace-nowrap px-3 py-4">{r.address}</td>
                     <td className="px-3 py-4">
                       <PlanPill plan={r.plan} />
                     </td>
                     <td className="px-3 py-4">
                       <StatusPill status={r.status} />
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4">{fmtDate(r.daysAgo)}</td>
+                    <td className="whitespace-nowrap px-3 py-4">{fmtDate(r.createdAt)}</td>
                     <td className="py-4 pl-3 pr-5">
                       <span className="flex items-center gap-2 text-foreground/85">
                         <button type="button" onClick={() => setDetail(r)} aria-label={`Voir ${r.name}`} className="rounded p-1 hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
                           <Eye className="size-4.5" aria-hidden="true" />
                         </button>
+                        {DEMO_SUPERADMIN && (
+                          <>
                         <button type="button" onClick={() => soon('La modification')} aria-label={`Modifier ${r.name}`} className="rounded p-1 hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
                           <Pencil className="size-4.5" aria-hidden="true" />
                         </button>
                         <button type="button" onClick={() => soon('Le menu d’actions')} aria-label={`Plus d’actions pour ${r.name}`} className="rounded p-1 hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
                           <EllipsisVertical className="size-4.5" aria-hidden="true" />
                         </button>
+                          </>
+                        )}
                       </span>
                     </td>
                   </tr>
@@ -236,13 +294,13 @@ export function SuperAdminDashboard() {
 
           {/* Liste (téléphone) */}
           <ul className="divide-y divide-border md:hidden">
-            {demoRestaurants.map((r) => (
+            {restaurants.map((r) => (
               <li key={r.id}>
                 <button type="button" onClick={() => setDetail(r)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ember/30">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{r.name}</span>
                     <span className="block text-xs text-muted-foreground">
-                      {r.city} · {fmtDate(r.daysAgo)}
+                      {r.address} · {fmtDate(r.createdAt)}
                     </span>
                     <span className="mt-1.5 flex gap-2">
                       <PlanPill plan={r.plan} />

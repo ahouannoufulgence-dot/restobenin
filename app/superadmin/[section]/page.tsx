@@ -29,7 +29,7 @@ export default async function SuperAdminSectionPage({ params }: { params: Promis
         </span>
         <h2 className="mt-4 font-serif text-2xl font-semibold">Section à venir</h2>
         <p className="mt-2 text-foreground/80">{found.description}</p>
-        <p className="mt-1 text-sm text-muted-foreground">Elle sera disponible une fois la base de données branchée.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Cette section sera disponible prochainement.</p>
         <Link href="/superadmin" className="mt-6 inline-flex h-11 items-center gap-2 rounded-lg border border-border px-5 text-sm font-semibold hover:border-ember hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">
           <ArrowLeft className="size-4" aria-hidden="true" />
           Retour au tableau de bord
