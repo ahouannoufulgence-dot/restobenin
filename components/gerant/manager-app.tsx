@@ -12,7 +12,8 @@ import { clearSyncError, isRemote, useHydration, useSyncError } from '@/lib/supa
 import { findEmployee, useEmployees } from '@/lib/employees-store'
 import { accessFor, usePermissionOverrides } from '@/lib/permissions'
 import { summarize, useStock } from '@/lib/stock-store'
-import { initialTables, manager, type ManagerView, type RestaurantTable, type TableStatus } from '@/lib/gerant-data'
+import { manager, type ManagerView, type RestaurantTable } from '@/lib/gerant-data'
+import { tablesActions, useTables } from '@/lib/tables-store'
 import { menuActions, useMenu } from '@/lib/menu-store'
 import { isUnpaid, ordersActions, useOrders } from '@/lib/orders-store'
 import { todayStats } from '@/lib/reports'
@@ -33,12 +34,10 @@ import { StockScreen } from './stock-screen'
 import { AccountScreen } from './account-screen'
 import { HelpScreen } from './help-screen'
 
-const nextTableStatus: Record<TableStatus, TableStatus> = { libre: 'occupee', occupee: 'reservee', reservee: 'libre' }
-
 export function ManagerApp() {
   const [started, setStarted] = useState(false)
   const [view, setView] = useState<ManagerView>('accueil')
-  const [tables, setTables] = useState<RestaurantTable[]>(initialTables)
+  const tables = useTables()
   const router = useRouter()
   // undefined : lecture de la session en cours ; null : personne n'est connecté.
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -190,9 +189,9 @@ export function ManagerApp() {
 
   const cycleTable = (id: string) => {
     if (openTables.has(tableNumber(id))) return
-    setTables((list) => list.map((t) => (t.id === id ? { ...t, status: nextTableStatus[t.status] } : t)))
+    tablesActions.cycle(id)
   }
-  const addTable = () => setTables((list) => [...list, { id: `T${list.length + 1}`, seats: 4, status: 'libre' }])
+  const addTable = () => tablesActions.add()
 
   const badges = {
     commandes: orders.filter((o) => o.status === 'en_attente').length,

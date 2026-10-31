@@ -31,5 +31,13 @@ export const api = {
 
   upsertPermissions: (rows: Record<string, unknown>[]) => getSupabase().from('role_permissions').upsert(rows, { onConflict: 'restaurant_id,role' }),
 
+  insertDish: (row: Record<string, unknown>) => getSupabase().from('menu_items').insert(row),
+  updateDish: (id: string, row: Record<string, unknown>) => getSupabase().from('menu_items').update(row).eq('id', id),
+  deleteDish: (id: string) => getSupabase().from('menu_items').delete().eq('id', id),
+
+  insertTable: (row: Record<string, unknown>) => getSupabase().from('dining_tables').insert(row),
+  updateTableStatus: (rid: string, number: number, status: string) =>
+    getSupabase().from('dining_tables').update({ status }).eq('restaurant_id', rid).eq('number', number),
+
   changePlan: (rid: string, plan: string, billing: string) => getSupabase().rpc('change_plan', { p_restaurant: rid, p_plan: plan, p_billing: billing }),
 }

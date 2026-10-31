@@ -82,7 +82,7 @@ function DishForm({
             <p className="mb-1.5 text-sm font-medium">Photo du plat</p>
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-dashed border-border bg-muted">
               {draft.image ? (
-                <Image src={draft.image} alt="Aperçu de la photo du plat" fill sizes="(min-width: 768px) 448px, 100vw" className="object-cover" />
+                <Image src={draft.image} alt="Aperçu de la photo du plat" fill sizes="(min-width: 768px) 448px, 100vw" unoptimized={!draft.image.startsWith('/')} className="object-cover" />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
                   <ImagePlus className="size-9" strokeWidth={1.5} aria-hidden="true" />
@@ -266,7 +266,7 @@ export function MenuScreen({
               >
                 <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-muted">
                   {dish.image ? (
-                    <Image src={dish.image} alt="" fill sizes="64px" className="object-cover" />
+                    <Image src={dish.image} alt="" fill sizes="64px" unoptimized={!dish.image.startsWith('/')} className="object-cover" />
                   ) : (
                     <UtensilsCrossed className="absolute inset-0 m-auto size-6 text-muted-foreground" aria-hidden="true" />
                   )}
