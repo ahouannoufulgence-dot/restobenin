@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react'
+import { api, publicUrl, uploadDataUrl } from './supabase/api'
+import { background, getRemote, onRemoteReset } from './supabase/runtime'
 
 /**
  * Stocks du restaurant (module « Stocks » de l'espace gérant).
@@ -141,6 +143,7 @@ function emit() {
 }
 
 function onStorage(e: StorageEvent) {
+  if (getRemote()) return // mode base de données : la mémoire du navigateur ne sert plus
   if (e.key === KEY || e.key === null) {
     cache = null
     emit()
@@ -177,26 +180,86 @@ function commit(next: State): boolean {
   return true
 }
 
+// Mode base de données : les articles et l'historique viennent de Supabase, un jeu de données par restaurant.
+onRemoteReset(() => {
+  cache = null
+  emit()
+})
+
+/** Met en place les articles et mouvements lus dans la base. */
+export function applyRemoteStock(items: StockItem[], movements: StockMovement[]) {
+  cache = { items, movements }
+  emit()
+}
+
+function remoteCommit(next: State): boolean {
+  cache = next
+  emit()
+  return true
+}
+
 export function useStock(): State {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
 
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
 
+const roundQty = (v: number) => Math.round(v * 100) / 100
+const trendOf = (before: number, after: number) => (before > 0 ? Math.round(((after - before) / before) * 100) : 100)
+
 export type MovementResult = { ok: true } | { ok: false; error: string }
 
 export const stockActions = {
-  newId: () => uid('s'),
+  // Mode base de données : un vrai identifiant unique (la base en exige un).
+  newId: () => (getRemote() ? crypto.randomUUID() : uid('s')),
 
   /** Ajoute l'article, ou met à jour celui qui a le même id. */
   saveItem(item: StockItem): boolean {
     const s = getSnapshot()
     const exists = s.items.some((i) => i.id === item.id)
+    const remote = getRemote()
+    if (remote) {
+      const previous = s.items.find((i) => i.id === item.id)
+      const delta = previous ? roundQty(item.qty - previous.qty) : 0
+      // La base ne laisse changer la quantité que par un mouvement : une correction devient une entrée ou une sortie.
+      const next = previous && delta !== 0 ? { ...item, trend: trendOf(previous.qty, item.qty) } : previous ? { ...item, trend: previous.trend } : item
+      const correction: StockMovement[] =
+        previous && delta !== 0
+          ? [{ id: uid('m'), itemId: item.id, itemName: item.name, unit: item.unit, type: delta > 0 ? 'entree' : 'sortie', qty: Math.abs(delta), note: 'Correction manuelle', at: Date.now() }]
+          : []
+      remoteCommit({ items: exists ? s.items.map((i) => (i.id === item.id ? next : i)) : [...s.items, next], movements: [...correction, ...s.movements].slice(0, 200) })
+      background(exists ? 'Modification de l’article' : 'Ajout de l’article', async () => {
+        let imagePath: string | null | undefined
+        if (item.image?.startsWith('data:')) {
+          imagePath = await uploadDataUrl(remote.restaurantId, 'stock', item.id, item.image)
+          const url = publicUrl(imagePath)
+          remoteCommit({ ...getSnapshot(), items: getSnapshot().items.map((i) => (i.id === item.id ? { ...i, image: url } : i)) })
+        } else if (!item.image) imagePath = null
+        const row: Record<string, unknown> = {
+          name: item.name,
+          kind: item.kind,
+          unit: item.unit,
+          threshold: item.threshold,
+          unit_cost_fcfa: Math.round(item.unitCost),
+          ...(imagePath !== undefined ? { image_path: imagePath } : {}),
+        }
+        if (!previous) return api.insertStockItem({ id: item.id, restaurant_id: remote.restaurantId, qty: item.qty, ...row })
+        const updated = await api.updateStockItem(item.id, row)
+        if (updated.error || delta === 0) return updated
+        return api.recordMovement(item.id, delta > 0 ? 'entree' : 'sortie', Math.abs(delta), 'Correction manuelle')
+      })
+      return true
+    }
     return commit({ ...s, items: exists ? s.items.map((i) => (i.id === item.id ? item : i)) : [...s.items, item] })
   },
 
   removeItem(id: string): boolean {
     const s = getSnapshot()
+    if (getRemote()) {
+      remoteCommit({ ...s, items: s.items.filter((i) => i.id !== id) })
+      background('Suppression de l’article', () => api.deleteStockItem(id))
+      return true
+    }
     return commit({ ...s, items: s.items.filter((i) => i.id !== id) })
   },
 
@@ -211,10 +274,16 @@ export const stockActions = {
     const rounded = Math.round(next * 100) / 100
     const trend = item.qty > 0 ? Math.round(((rounded - item.qty) / item.qty) * 100) : 100
     const movement: StockMovement = { id: uid('m'), itemId, itemName: item.name, unit: item.unit, type, qty, note: note?.trim() || undefined, at: Date.now() }
-    const saved = commit({
+    const state: State = {
       items: s.items.map((i) => (i.id === itemId ? { ...i, qty: rounded, trend } : i)),
       movements: [movement, ...s.movements].slice(0, 200),
-    })
+    }
+    if (getRemote()) {
+      remoteCommit(state)
+      background('Mouvement de stock', () => api.recordMovement(itemId, type, qty, movement.note?.slice(0, 80) ?? null))
+      return { ok: true }
+    }
+    const saved = commit(state)
     return saved ? { ok: true } : { ok: false, error: 'Enregistrement impossible : le stockage du navigateur est plein.' }
   },
 }

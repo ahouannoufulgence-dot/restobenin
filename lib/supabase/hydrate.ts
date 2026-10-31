@@ -5,6 +5,7 @@ import type { Billing, PlanId } from '@/lib/plans'
 import { applyRemoteMenu, type MenuDish } from '@/lib/menu-store'
 import { REMOTE_ORDERS_WINDOW_DAYS, applyRemoteOrders, loadRemoteOrders } from '@/lib/orders-store'
 import { applyRemoteSettings } from '@/lib/settings-store'
+import { applyRemoteStock, type StockItem, type StockMovement } from '@/lib/stock-store'
 import { applyRemoteTables } from '@/lib/tables-store'
 import { publicUrl } from './api'
 import { getSupabase } from './client'
@@ -83,6 +84,41 @@ export async function hydrate(): Promise<boolean> {
     } catch (e) {
       applyRemoteOrders([], 0)
       reportSyncError(`Chargement des commandes : ${friendlyError(e instanceof Error ? e.message : String(e))}`)
+    }
+
+    // Stock : réservé aux fonctions qui y ont accès (sinon la base renvoie des listes vides). N'empêche pas non plus l'ouverture.
+    try {
+      const [si, sm] = await Promise.all([
+        sb.from('stock_items').select('*').eq('restaurant_id', ctx.restaurantId).order('created_at'),
+        sb.from('stock_movements').select('*').eq('restaurant_id', ctx.restaurantId).order('created_at', { ascending: false }).limit(200),
+      ])
+      if (si.error) throw new Error(si.error.message)
+      if (sm.error) throw new Error(sm.error.message)
+      const items: StockItem[] = ((si.data ?? []) as any[]).map((i) => ({
+        id: i.id,
+        name: i.name,
+        unit: i.unit,
+        qty: Number(i.qty),
+        threshold: Number(i.threshold),
+        unitCost: i.unit_cost_fcfa,
+        trend: i.trend ?? 0,
+        kind: i.kind,
+        image: publicUrl(i.image_path),
+      }))
+      const movements: StockMovement[] = ((sm.data ?? []) as any[]).map((x) => ({
+        id: x.id,
+        itemId: x.stock_item_id ?? '',
+        itemName: x.item_name,
+        unit: x.unit,
+        type: x.type,
+        qty: Number(x.qty),
+        note: x.note ?? undefined,
+        at: Date.parse(x.created_at),
+      }))
+      applyRemoteStock(items, movements)
+    } catch (e) {
+      applyRemoteStock([], [])
+      reportSyncError(`Chargement du stock : ${friendlyError(e instanceof Error ? e.message : String(e))}`)
     }
 
     const overrides: Partial<Record<EmployeeRole, RolePermissions>> = {}

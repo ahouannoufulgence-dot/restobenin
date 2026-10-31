@@ -35,6 +35,12 @@ export const api = {
   updateDish: (id: string, row: Record<string, unknown>) => getSupabase().from('menu_items').update(row).eq('id', id),
   deleteDish: (id: string) => getSupabase().from('menu_items').delete().eq('id', id),
 
+  insertStockItem: (row: Record<string, unknown>) => getSupabase().from('stock_items').insert(row),
+  updateStockItem: (id: string, row: Record<string, unknown>) => getSupabase().from('stock_items').update(row).eq('id', id),
+  deleteStockItem: (id: string) => getSupabase().from('stock_items').delete().eq('id', id),
+  recordMovement: (item: string, type: 'entree' | 'sortie', qty: number, note: string | null) =>
+    getSupabase().rpc('record_stock_movement', { p_item: item, p_type: type, p_qty: qty, p_note: note }),
+
   insertTable: (row: Record<string, unknown>) => getSupabase().from('dining_tables').insert(row),
   updateTableStatus: (rid: string, number: number, status: string) =>
     getSupabase().from('dining_tables').update({ status }).eq('restaurant_id', rid).eq('number', number),
