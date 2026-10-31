@@ -2,7 +2,9 @@ import { type Account, applyRemoteAccount } from '@/lib/account-store'
 import { type Employee, type EmployeeRole, applyRemoteEmployees } from '@/lib/employees-store'
 import { DEFAULT_PERMISSIONS, applyRemotePermissions, editableRoles, type ConfigurableView, type RolePermissions } from '@/lib/permissions'
 import type { Billing, PlanId } from '@/lib/plans'
+import { applyRemoteMenu, type MenuDish } from '@/lib/menu-store'
 import { applyRemoteSettings } from '@/lib/settings-store'
+import { applyRemoteTables } from '@/lib/tables-store'
 import { publicUrl } from './api'
 import { getSupabase } from './client'
 import { friendlyError, getRemote, reportSyncError, setHydration, setRehydrator } from './runtime'
@@ -19,7 +21,7 @@ export async function hydrate(): Promise<boolean> {
   setHydration('loading')
   try {
     const sb = getSupabase()
-    const [r, s, p, inv] = await Promise.all([
+    const [r, s, p, inv, m, t] = await Promise.all([
       sb.from('restaurants').select('*').eq('id', ctx.restaurantId).single(),
       sb.from('staff').select('*').eq('restaurant_id', ctx.restaurantId).order('created_at'),
       sb.from('role_permissions').select('*').eq('restaurant_id', ctx.restaurantId),
@@ -29,10 +31,14 @@ export async function hydrate(): Promise<boolean> {
         .eq('restaurant_id', ctx.restaurantId)
         .order('created_at', { ascending: false })
         .limit(1),
+      sb.from('menu_items').select('*').eq('restaurant_id', ctx.restaurantId).order('position').order('created_at'),
+      sb.from('dining_tables').select('number, seats, status').eq('restaurant_id', ctx.restaurantId),
     ])
     if (r.error || !r.data) throw new Error(r.error?.message ?? 'Restaurant introuvable.')
     if (s.error) throw new Error(s.error.message)
     if (p.error) throw new Error(p.error.message)
+    if (m.error) throw new Error(m.error.message)
+    if (t.error) throw new Error(t.error.message)
 
     const rest = r.data as any
     const staffRows = (s.data ?? []) as any[]
@@ -57,6 +63,18 @@ export async function hydrate(): Promise<boolean> {
       photo: publicUrl(x.photo_path),
     }))
     applyRemoteEmployees(employees)
+
+    const dishes: MenuDish[] = ((m.data ?? []) as any[]).map((d) => ({
+      id: d.id,
+      name: d.name,
+      description: d.description ?? '',
+      price: d.price_fcfa,
+      category: d.category,
+      image: publicUrl(d.image_path),
+      available: !!d.available,
+    }))
+    applyRemoteMenu(dishes)
+    applyRemoteTables(((t.data ?? []) as any[]).map((x) => ({ number: x.number, seats: x.seats, status: x.status })))
 
     const overrides: Partial<Record<EmployeeRole, RolePermissions>> = {}
     for (const row of (p.data ?? []) as any[]) {
