@@ -3,6 +3,7 @@ import { type Employee, type EmployeeRole, applyRemoteEmployees } from '@/lib/em
 import { DEFAULT_PERMISSIONS, applyRemotePermissions, editableRoles, type ConfigurableView, type RolePermissions } from '@/lib/permissions'
 import type { Billing, PlanId } from '@/lib/plans'
 import { applyRemoteMenu, type MenuDish } from '@/lib/menu-store'
+import { REMOTE_ORDERS_WINDOW_DAYS, applyRemoteOrders, loadRemoteOrders } from '@/lib/orders-store'
 import { applyRemoteSettings } from '@/lib/settings-store'
 import { applyRemoteTables } from '@/lib/tables-store'
 import { publicUrl } from './api'
@@ -75,6 +76,14 @@ export async function hydrate(): Promise<boolean> {
     }))
     applyRemoteMenu(dishes)
     applyRemoteTables(((t.data ?? []) as any[]).map((x) => ({ number: x.number, seats: x.seats, status: x.status })))
+
+    // Les commandes ne doivent pas bloquer l'ouverture de l'application : en cas d'échec on affiche l'erreur et on repart d'une liste vide.
+    try {
+      applyRemoteOrders(await loadRemoteOrders(REMOTE_ORDERS_WINDOW_DAYS), 0)
+    } catch (e) {
+      applyRemoteOrders([], 0)
+      reportSyncError(`Chargement des commandes : ${friendlyError(e instanceof Error ? e.message : String(e))}`)
+    }
 
     const overrides: Partial<Record<EmployeeRole, RolePermissions>> = {}
     for (const row of (p.data ?? []) as any[]) {

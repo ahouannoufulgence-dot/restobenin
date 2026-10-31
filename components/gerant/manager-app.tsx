@@ -15,7 +15,7 @@ import { summarize, useStock } from '@/lib/stock-store'
 import { manager, type ManagerView, type RestaurantTable } from '@/lib/gerant-data'
 import { tablesActions, useTables } from '@/lib/tables-store'
 import { menuActions, useMenu } from '@/lib/menu-store'
-import { isUnpaid, ordersActions, useOrders } from '@/lib/orders-store'
+import { isUnpaid, ordersActions, refreshRemoteOrders, useOrders } from '@/lib/orders-store'
 import { todayStats } from '@/lib/reports'
 import { tableNumber, useSettings } from '@/lib/settings-store'
 import { WelcomeScreen } from './welcome-screen'
@@ -124,6 +124,20 @@ export function ManagerApp() {
   if (session === undefined || session === null) return null
 
   // Base de données : on attend les données du restaurant avant d'afficher quoi que ce soit.
+  // Mode base de données : on relit les commandes toutes les 8 secondes (nouvelles commandes des clients, cuisine sur un autre appareil).
+  useEffect(() => {
+    if (!supabaseConfigured || hydration !== 'ready') return
+    const tick = () => {
+      if (document.visibilityState === 'visible') void refreshRemoteOrders()
+    }
+    const timer = window.setInterval(tick, 8000)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [hydration])
+
   if (supabaseConfigured && hydration !== 'ready') {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-background px-6">
