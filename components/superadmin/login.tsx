@@ -34,7 +34,7 @@ export function SuperAdminLogin() {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     const next: typeof errors = {}
-    if (!identifier.trim()) next.identifier = 'Indiquez votre identifiant.'
+    if (!identifier.trim()) next.identifier = DEMO_SUPERADMIN ? 'Indiquez votre identifiant.' : 'Indiquez votre adresse e-mail.'
     if (!password) next.password = 'Indiquez votre mot de passe.'
     setErrors(next)
     if (next.identifier) return idRef.current?.focus()
@@ -104,7 +104,7 @@ export function SuperAdminLogin() {
 
             <div>
               <label htmlFor="sa-id" className="sr-only">
-                Identifiant Super Admin
+                {DEMO_SUPERADMIN ? 'Identifiant Super Admin' : 'Adresse e-mail Super Admin'}
               </label>
               <div className={cn(field, errors.identifier ? 'border-destructive' : 'border-gold/60')}>
                 <User className="size-6 shrink-0 text-espresso/85" strokeWidth={1.7} aria-hidden="true" />
@@ -113,10 +113,11 @@ export function SuperAdminLogin() {
                   id="sa-id"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  autoComplete="username"
+                  type={DEMO_SUPERADMIN ? 'text' : 'email'}
+                  autoComplete={DEMO_SUPERADMIN ? 'username' : 'email'}
                   autoCapitalize="none"
                   spellCheck={false}
-                  placeholder="Identifiant Super Admin"
+                  placeholder={DEMO_SUPERADMIN ? 'Identifiant Super Admin' : 'Adresse e-mail Super Admin'}
                   aria-invalid={!!errors.identifier}
                   aria-describedby={errors.identifier ? 'sa-id-error' : undefined}
                   className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
