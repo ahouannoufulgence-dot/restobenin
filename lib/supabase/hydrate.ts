@@ -53,6 +53,7 @@ export async function hydrate(): Promise<boolean> {
       phone: rest.phone ?? '',
       receiptFooter: rest.receipt_footer ?? 'Merci de votre visite !',
       demoData: false, // un vrai restaurant n'a pas d'historique fictif
+      restaurantSlug: rest.slug,
     })
 
     const employees: Employee[] = staffRows.map((x) => ({
