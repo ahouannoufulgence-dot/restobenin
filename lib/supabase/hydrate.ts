@@ -9,7 +9,7 @@ import { applyRemoteStock, type StockItem, type StockMovement } from '@/lib/stoc
 import { applyRemoteTables } from '@/lib/tables-store'
 import { publicUrl } from './api'
 import { getSupabase } from './client'
-import { friendlyError, getRemote, reportSyncError, setHydration, setRehydrator } from './runtime'
+import { type AccountStatus, friendlyError, getAccountStatus, getRemote, reportSyncError, setAccountStatus, setHydration, setRehydrator } from './runtime'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -43,6 +43,7 @@ export async function hydrate(): Promise<boolean> {
     if (t.error) throw new Error(t.error.message)
 
     const rest = r.data as any
+    setAccountStatus(rest.subscription as AccountStatus)
     const staffRows = (s.data ?? []) as any[]
     const me = staffRows.find((x) => x.id === ctx.staffId)
 
@@ -163,3 +164,22 @@ export async function hydrate(): Promise<boolean> {
 }
 
 setRehydrator(hydrate)
+
+/**
+ * Relit l'état de l'abonnement (appelé régulièrement) : une suspension ou une réactivation décidée par le Super Admin
+ * doit se voir sans que le gérant ait à recharger la page. Renvoie l'état d'avant et d'après, ou null si la lecture échoue.
+ */
+export async function refreshAccountStatus(): Promise<{ previous: AccountStatus | null; current: AccountStatus } | null> {
+  const ctx = getRemote()
+  if (!ctx) return null
+  try {
+    const { data, error } = await getSupabase().from('restaurants').select('subscription').eq('id', ctx.restaurantId).maybeSingle()
+    if (error || !data) return null
+    const previous = getAccountStatus()
+    const current = data.subscription as AccountStatus
+    setAccountStatus(current)
+    return { previous, current }
+  } catch {
+    return null
+  }
+}

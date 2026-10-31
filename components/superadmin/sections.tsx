@@ -8,13 +8,16 @@ import { fcfa } from '@/lib/gerant-data'
 import { DEMO_SUPERADMIN } from '@/lib/superadmin-auth'
 import { friendlyError } from '@/lib/supabase/runtime'
 import {
+  loadAuditLog,
   loadPayments,
   loadPlans,
   loadRestaurants,
   loadSubscriptions,
   loadTickets,
   loadUsers,
+  setRestaurantStatus,
   updateTicketStatus,
+  type AuditRow,
   type PaymentRow,
   type PlanRow,
   type RestaurantRow,
@@ -109,24 +112,175 @@ function Panel<T extends { id: string }>({ title, rows, cols, error, empty }: { 
 
 /* ------------------------------------------------------------------ sections */
 
-function RestaurantsSection() {
-  const { data, error } = useLoad(loadRestaurants)
+function ConfirmStatusDialog({
+  restaurant,
+  onCancel,
+  onConfirm,
+}: {
+  restaurant: RestaurantRow
+  onCancel: () => void
+  onConfirm: (reason: string) => Promise<void>
+}) {
+  const suspending = restaurant.status === 'Actif'
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState('')
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [busy, onCancel])
+
+  async function confirm() {
+    setBusy(true)
+    setFailure('')
+    try {
+      await onConfirm(reason)
+    } catch (e) {
+      setFailure(friendlyError(e instanceof Error ? e.message : String(e)))
+      setBusy(false)
+    }
+  }
+
   return (
-    <Panel<RestaurantRow>
-      title="Tous les restaurants"
-      rows={data}
-      error={error}
-      empty="Aucun restaurant pour le moment."
-      cols={[
-        { header: 'Restaurant', cell: (r) => r.name },
-        { header: 'Adresse', cell: (r) => r.address },
-        { header: 'Gérant', cell: (r) => r.owner },
-        { header: 'Formule', cell: (r) => <Pill tone="neutral">{r.plan}</Pill> },
-        { header: 'Statut', cell: (r) => <Pill tone={subscriptionTone(r.status)}>{r.status}</Pill> },
-        { header: 'Tables', cell: (r) => r.tables, className: 'tabular-nums' },
-        { header: 'Inscrit le', cell: (r) => date(r.createdAt), className: 'whitespace-nowrap' },
-      ]}
-    />
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={() => !busy && onCancel()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="status-title"
+        className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="status-title" className="font-serif text-2xl font-semibold">
+          {suspending ? `Suspendre ${restaurant.name} ?` : `Réactiver ${restaurant.name} ?`}
+        </h2>
+        <p className="mt-2 text-sm text-foreground/80">
+          {suspending
+            ? 'Ses clients ne pourront plus commander, et son équipe passera en lecture seule : plus de commande, d’encaissement ni de modification, jusqu’à la réactivation. Vous pourrez la réactiver à tout moment.'
+            : 'Le restaurant retrouvera tout de suite l’accès complet, et ses clients pourront de nouveau commander.'}
+        </p>
+        <label htmlFor="status-reason" className="mt-4 block text-sm font-medium">
+          Motif <span className="font-normal text-muted-foreground">(facultatif, conservé dans le journal)</span>
+        </label>
+        <textarea
+          id="status-reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          maxLength={300}
+          rows={3}
+          className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ember focus:ring-3 focus:ring-ember/20"
+        />
+        {failure && (
+          <p role="alert" className="mt-3 rounded-lg bg-destructive/10 p-3 text-sm font-medium text-destructive">
+            {failure}
+          </p>
+        )}
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            autoFocus
+            disabled={busy}
+            onClick={onCancel}
+            className="h-11 rounded-lg border border-border text-sm font-semibold hover:border-ember disabled:opacity-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void confirm()}
+            className={cn(
+              'h-11 rounded-lg text-sm font-semibold text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40',
+              suspending ? 'bg-destructive hover:bg-destructive/90' : 'bg-ember-deep hover:bg-ember-deep/90',
+            )}
+          >
+            {busy ? 'En cours…' : suspending ? 'Suspendre' : 'Réactiver'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RestaurantsSection() {
+  const { data, setData, error } = useLoad(loadRestaurants)
+  const log = useLoad(loadAuditLog)
+  const [target, setTarget] = useState<RestaurantRow | null>(null)
+  const [notice, setNotice] = useState('')
+
+  async function apply(restaurant: RestaurantRow, reason: string) {
+    const next = restaurant.status === 'Actif' ? 'suspendu' : 'actif'
+    await setRestaurantStatus(restaurant.id, next, reason) // lance une erreur si la base refuse : le dialogue l'affiche
+    const status: RestaurantStatus = next === 'suspendu' ? 'Suspendu' : 'Actif'
+    setData((rows) => rows && rows.map((r) => (r.id === restaurant.id ? { ...r, status } : r)))
+    log.setData((rows) => [
+      { id: `local-${Date.now()}`, action: next === 'suspendu' ? 'suspension' : 'reactivation', restaurant: restaurant.name, reason: reason.trim(), createdAt: new Date().toISOString() } as AuditRow,
+      ...(rows ?? []),
+    ])
+    setNotice(`${restaurant.name} est maintenant ${status === 'Actif' ? 'actif' : 'suspendu'}.`)
+    setTarget(null)
+  }
+
+  return (
+    <div className="grid gap-6">
+      {notice && (
+        <p role="status" className="rounded-xl bg-success/15 p-3 text-sm font-medium text-success">
+          {notice}
+        </p>
+      )}
+      <Panel<RestaurantRow>
+        title="Tous les restaurants"
+        rows={data}
+        error={error}
+        empty="Aucun restaurant pour le moment."
+        cols={[
+          { header: 'Restaurant', cell: (r) => r.name },
+          { header: 'Adresse', cell: (r) => r.address },
+          { header: 'Gérant', cell: (r) => r.owner },
+          { header: 'Formule', cell: (r) => <Pill tone="neutral">{r.plan}</Pill> },
+          { header: 'Statut', cell: (r) => <Pill tone={subscriptionTone(r.status)}>{r.status}</Pill> },
+          { header: 'Tables', cell: (r) => r.tables, className: 'tabular-nums' },
+          { header: 'Inscrit le', cell: (r) => date(r.createdAt), className: 'whitespace-nowrap' },
+          {
+            header: 'Action',
+            cell: (r) =>
+              r.status === 'Résilié' ? (
+                <span className="text-muted-foreground">—</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotice('')
+                    setTarget(r)
+                  }}
+                  className={cn(
+                    'h-9 whitespace-nowrap rounded-lg border px-3 text-xs font-semibold focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30',
+                    r.status === 'Actif' ? 'border-destructive/40 text-destructive hover:bg-destructive/10' : 'border-border hover:border-ember hover:text-ember',
+                  )}
+                >
+                  {r.status === 'Actif' ? 'Suspendre' : 'Réactiver'}
+                </button>
+              ),
+          },
+        ]}
+      />
+      <Panel<AuditRow>
+        title="Journal des actions"
+        rows={log.data}
+        error={log.error}
+        empty="Aucune suspension ni réactivation pour le moment."
+        cols={[
+          { header: 'Date', cell: (a) => new Date(a.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ''), className: 'whitespace-nowrap' },
+          { header: 'Action', cell: (a) => <Pill tone={a.action === 'suspension' ? 'warn' : 'ok'}>{a.action === 'suspension' ? 'Suspension' : 'Réactivation'}</Pill> },
+          { header: 'Restaurant', cell: (a) => a.restaurant },
+          { header: 'Motif', cell: (a) => a.reason || '—', className: 'min-w-40' },
+        ]}
+      />
+      {target && <ConfirmStatusDialog restaurant={target} onCancel={() => setTarget(null)} onConfirm={(reason) => apply(target, reason)} />}
+    </div>
   )
 }
 
