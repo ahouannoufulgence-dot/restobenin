@@ -3,10 +3,22 @@ import { Check, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { emberAction, outlineAction } from './ui'
 
-export function ReviewSheet({ onClose, onSubmit }: { onClose: () => void; onSubmit?: (rating: number, comment: string) => void }) {
+export function ReviewSheet({ onClose, onSubmit }: { onClose: () => void; onSubmit?: (rating: number, comment: string) => void | string | Promise<string | void> }) {
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
   const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  // L'envoi peut être refusé (commande pas encore servie, avis déjà donné) : on affiche alors la raison.
+  async function send() {
+    setBusy(true)
+    setError('')
+    const failure = await onSubmit?.(rating, comment)
+    setBusy(false)
+    if (failure) return setError(failure)
+    setSent(true)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-espresso/60 md:items-center md:p-6" role="dialog" aria-modal="true" aria-labelledby="review-title">
@@ -55,11 +67,13 @@ export function ReviewSheet({ onClose, onSubmit }: { onClose: () => void; onSubm
               className="mt-1.5 w-full resize-none rounded-xl border border-input bg-card p-3 text-sm outline-none focus-visible:border-ember focus-visible:ring-3 focus-visible:ring-ember/25"
             />
             <div className="mt-4 flex flex-col gap-3">
-              <button type="button" disabled={rating === 0} onClick={() => {
-                  onSubmit?.(rating, comment)
-                  setSent(true)
-                }} className={`${emberAction} disabled:pointer-events-none disabled:opacity-50`}>
-                Envoyer mon avis
+              {error && (
+                <p role="alert" className="text-sm font-medium text-destructive">
+                  {error}
+                </p>
+              )}
+              <button type="button" disabled={rating === 0 || busy} onClick={() => void send()} className={`${emberAction} disabled:pointer-events-none disabled:opacity-50`}>
+                {busy ? 'Envoi…' : 'Envoyer mon avis'}
               </button>
               <button type="button" onClick={onClose} className={outlineAction}>
                 Plus tard

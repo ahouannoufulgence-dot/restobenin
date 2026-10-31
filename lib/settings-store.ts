@@ -17,6 +17,8 @@ export type Settings = {
   receiptFooter: string
   /** Inclure l'historique fictif de démonstration dans les rapports. */
   demoData: boolean
+  /** Mode base de données : identifiant public du restaurant, utilisé dans les QR codes. */
+  restaurantSlug?: string
 }
 
 const KEY = 'restoben:settings:v1'
@@ -89,7 +91,7 @@ export function applyRemoteSettings(next: Settings) {
 export function saveSettings(next: Settings): boolean {
   const remote = getRemote()
   if (remote) {
-    cache = next
+    cache = { ...next, restaurantSlug: next.restaurantSlug ?? cache?.restaurantSlug }
     emit()
     background('Enregistrement des paramètres', () =>
       api.updateRestaurant(remote.restaurantId, {
@@ -129,6 +131,9 @@ export function tableNumber(tableId: string): string {
   return tableId.replace(/\D/g, '') || tableId
 }
 
-export function tableUrl(baseUrl: string, tableId: string): string {
-  return `${baseUrl.replace(/\/+$/, '')}/client?table=${encodeURIComponent(tableNumber(tableId))}`
+export function tableUrl(baseUrl: string, tableId: string, slug?: string): string {
+  const base = baseUrl.replace(/\/+$/, '')
+  const table = encodeURIComponent(tableNumber(tableId))
+  // Avec la base de données, le lien désigne aussi le restaurant : chaque restaurant a son propre menu et ses propres commandes.
+  return slug ? `${base}/client?r=${encodeURIComponent(slug)}&table=${table}` : `${base}/client?table=${table}`
 }

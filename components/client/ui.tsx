@@ -19,7 +19,7 @@ export function DishImage({ dish, sizes, className }: { dish: ClientDish; sizes:
   if (dish.image) {
     return (
       <div className={cn('relative overflow-hidden bg-sand', className)}>
-        <Image src={dish.image} alt={dish.name} fill sizes={sizes} className="object-cover" />
+        <Image src={dish.image} alt={dish.name} fill sizes={sizes} unoptimized={!dish.image.startsWith('/')} className="object-cover" />
       </div>
     )
   }

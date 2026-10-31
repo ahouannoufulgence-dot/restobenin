@@ -5,6 +5,8 @@ import { DishImage, QtyStepper, emberAction, roundButton } from './ui'
 
 type CartProps = {
   error?: string
+  /** Frais de service du restaurant (par défaut ceux de la démonstration). */
+  serviceFee?: number
   dishes: ClientDish[]
   cart: Record<string, number>
   onSetQty: (id: string, qty: number) => void
@@ -12,7 +14,7 @@ type CartProps = {
   onBrowse: () => void
 }
 
-export function CartSummary({ error, dishes, cart, onSetQty, onOrder, onBrowse }: CartProps) {
+export function CartSummary({ error, serviceFee = SERVICE_FEE, dishes, cart, onSetQty, onOrder, onBrowse }: CartProps) {
   const lines = Object.entries(cart).flatMap(([id, qty]) => {
     const dish = dishes.find((d) => d.id === id)
     return dish ? [{ dish, qty }] : []
@@ -66,11 +68,11 @@ export function CartSummary({ error, dishes, cart, onSetQty, onOrder, onBrowse }
         </div>
         <div className="flex justify-between">
           <dt className="text-muted-foreground">Frais de service</dt>
-          <dd className="font-medium tabular-nums">{fcfa(SERVICE_FEE)}</dd>
+          <dd className="font-medium tabular-nums">{fcfa(serviceFee)}</dd>
         </div>
         <div className="mt-2 flex items-baseline justify-between border-t border-border pt-3">
           <dt className="font-serif text-xl font-semibold">Total</dt>
-          <dd className="font-serif text-2xl font-semibold tabular-nums text-ember-deep">{fcfa(subtotal + SERVICE_FEE)}</dd>
+          <dd className="font-serif text-2xl font-semibold tabular-nums text-ember-deep">{fcfa(subtotal + serviceFee)}</dd>
         </div>
       </dl>
 

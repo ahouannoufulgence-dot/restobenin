@@ -42,7 +42,7 @@ export function SettingsScreen({ tables, focusQr, onBack, canEditRoles = false }
 
   const base = settings.siteUrl || origin
   const isLocal = /localhost|127\.0\.0\.1|192\.168\./.test(base)
-  const list = base ? tables.map((t) => ({ id: t.id, number: tableNumber(t.id), url: tableUrl(base, t.id) })) : []
+  const list = base ? tables.map((t) => ({ id: t.id, number: tableNumber(t.id), url: tableUrl(base, t.id, settings.restaurantSlug) })) : []
   const urlsKey = list.map((t) => t.url).join('|')
 
   useEffect(() => {

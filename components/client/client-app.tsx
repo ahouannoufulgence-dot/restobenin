@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { Category, PlacedOrder } from '@/lib/client-data'
+import { useRemoteClient } from '@/lib/client-remote'
 import { useClientDishes } from '@/lib/menu-store'
 import { ordersActions, stageOf, useOrders } from '@/lib/orders-store'
 import { useSettings } from '@/lib/settings-store'
@@ -18,12 +19,17 @@ type View = 'accueil' | 'menu' | 'plat' | 'panier' | 'confirmee' | 'suivi'
 
 const ORDER_KEY = 'restoben:client-order'
 
-export function ClientApp({ table }: { table: string }) {
+/** `slug` : mode base de données (restaurant désigné par le QR code). `needsQr` : le lien ne désigne ni restaurant ni table. */
+export function ClientApp({ table, slug, needsQr = false }: { table: string; slug?: string; needsQr?: boolean }) {
   const [view, setView] = useState<View>('accueil')
   const [category, setCategory] = useState<Category | 'tous'>('tous')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const dishes = useClientDishes()
-  const { restaurantName } = useSettings()
+  const remote = useRemoteClient(slug, table)
+  const localDishes = useClientDishes()
+  const { restaurantName: localName } = useSettings()
+  const dishes = slug ? remote.dishes : localDishes
+  const restaurantName = slug ? remote.name : localName
+  const [placing, setPlacing] = useState(false)
   const [rawCart, setCart] = useState<Record<string, number>>({})
   const [orderId, setOrderId] = useState<string | null>(null)
   const [orderError, setOrderError] = useState('')
@@ -35,7 +41,7 @@ export function ClientApp({ table }: { table: string }) {
 
   // Le suivi vient des vrais statuts de la commande, mis à jour par la cuisine et la caisse.
   const stored = orderId ? orders.find((o) => o.id === orderId) : undefined
-  const order: PlacedOrder | null = stored
+  const localOrder: PlacedOrder | null = stored
     ? {
         number: stored.number,
         lines: stored.lines,
@@ -46,7 +52,9 @@ export function ClientApp({ table }: { table: string }) {
         cancelled: stored.status === 'annulee',
       }
     : null
-  const orderActive = !!stored && stored.status !== 'terminee' && stored.status !== 'annulee'
+  const localActive = !!stored && stored.status !== 'terminee' && stored.status !== 'annulee'
+  const order = slug ? remote.order : localOrder
+  const orderActive = slug ? remote.orderActive : localActive
 
   // Retrouve la commande en cours si le client recharge la page.
   useEffect(() => {
@@ -60,6 +68,7 @@ export function ClientApp({ table }: { table: string }) {
 
   // L'avis du client est enregistré sur sa commande : il alimente la satisfaction des rapports.
   const submitReview = (rating: number, comment: string) => {
+    if (slug) return remote.submitReview(rating, comment)
     if (orderId) ordersActions.review(orderId, rating, comment)
   }
 
@@ -77,12 +86,22 @@ export function ClientApp({ table }: { table: string }) {
     })
   }
 
-  function placeOrder() {
+  async function placeOrder() {
     const lines = Object.entries(cart).flatMap(([id, qty]) => {
       const dish = dishes.find((d) => d.id === id)
       return dish ? [{ id, name: dish.name, qty, price: dish.price }] : []
     })
-    if (lines.length === 0) return
+    if (lines.length === 0 || placing) return
+    if (slug) {
+      setPlacing(true)
+      const result = await remote.place(lines)
+      setPlacing(false)
+      if (!result.ok) return setOrderError(result.error)
+      setOrderError('')
+      setCart({})
+      go('confirmee')
+      return
+    }
     const created = ordersActions.create({ table, lines, source: 'client' })
     if (!created) {
       setOrderError('Impossible d’envoyer la commande. Appelez un serveur.')
@@ -100,6 +119,11 @@ export function ClientApp({ table }: { table: string }) {
   }
 
   const cartCount = Object.values(cart).reduce((sum, q) => sum + q, 0)
+
+  if (needsQr) return <MessageScreen title="Scannez le QR code de votre table" text="Pour commander, scannez le QR code posé sur votre table avec l’appareil photo de votre téléphone." />
+  if (slug && remote.status === 'loading') return <MessageScreen title="Chargement du menu…" />
+  if (slug && remote.status === 'notfound') return <MessageScreen title="Restaurant introuvable" text="Scannez de nouveau le QR code de votre table, ou appelez un serveur." />
+  if (slug && remote.status === 'error') return <MessageScreen title="Connexion impossible" text="Vérifiez votre connexion Internet, puis rechargez la page." />
 
   if (view === 'accueil') return <WelcomeScreen restaurantName={restaurantName} table={table} onStart={() => go('menu')} />
 
@@ -147,7 +171,7 @@ export function ClientApp({ table }: { table: string }) {
           <div className="mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10 lg:px-8">
             {menu}
             <aside className="hidden lg:sticky lg:top-24 lg:mt-8 lg:block lg:self-start">
-              <CartPanel error={orderError} dishes={dishes} cart={cart} onSetQty={setQty} onOrder={placeOrder} onBrowse={() => go('menu')} />
+              <CartPanel error={orderError} serviceFee={slug ? remote.serviceFee : undefined} dishes={dishes} cart={cart} onSetQty={setQty} onOrder={placeOrder} onBrowse={() => go('menu')} />
             </aside>
           </div>
         )}
@@ -163,11 +187,22 @@ export function ClientApp({ table }: { table: string }) {
             }}
           />
         )}
-        {view === 'panier' && <CartScreen error={orderError} dishes={dishes} cart={cart} onSetQty={setQty} onBack={() => go('menu')} onOrder={placeOrder} />}
+        {view === 'panier' && <CartScreen error={orderError} serviceFee={slug ? remote.serviceFee : undefined} dishes={dishes} cart={cart} onSetQty={setQty} onBack={() => go('menu')} onOrder={placeOrder} />}
         {view === 'suivi' && <TrackingScreen order={order} onMenu={() => go('menu')} onReview={() => setReviewOpen(true)} onBack={() => go('menu')} />}
       </div>
       {!dish && <BottomNav current={tab} onNavigate={navigate} cartCount={cartCount} hasOrder={orderActive} />}
       {reviewOpen && <ReviewSheet onClose={() => setReviewOpen(false)} onSubmit={submitReview} />}
     </div>
+  )
+}
+
+function MessageScreen({ title, text }: { title: string; text?: string }) {
+  return (
+    <main className="flex min-h-dvh items-center justify-center bg-background p-6 text-center">
+      <div className="max-w-sm">
+        <h1 className="font-serif text-2xl font-semibold">{title}</h1>
+        {text && <p className="mt-2 text-muted-foreground">{text}</p>}
+      </div>
+    </main>
   )
 }
