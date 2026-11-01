@@ -6,10 +6,13 @@ import { useSyncExternalStore } from 'react'
  */
 export type RemoteContext = { restaurantId: string; userId: string; staffId: string }
 export type Hydration = 'idle' | 'loading' | 'ready' | 'error'
+/** État de l'abonnement du restaurant connecté : seul « actif » permet de travailler (sinon lecture seule). */
+export type AccountStatus = 'actif' | 'suspendu' | 'resilie'
 
 let ctx: RemoteContext | null = null
 let hydration: Hydration = 'idle'
 let syncError: string | null = null
+let accountStatus: AccountStatus | null = null
 let rehydrator: (() => Promise<boolean>) | null = null
 const resetters = new Set<() => void>()
 const listeners = new Set<() => void>()
@@ -36,6 +39,13 @@ export function setHydration(next: Hydration) {
 }
 
 export const useHydration = () => useSyncExternalStore(subscribe, () => hydration, () => 'idle' as Hydration)
+export const useAccountStatus = () => useSyncExternalStore(subscribe, () => accountStatus, () => null)
+export const getAccountStatus = () => accountStatus
+export function setAccountStatus(next: AccountStatus | null) {
+  if (accountStatus === next) return
+  accountStatus = next
+  emit()
+}
 export const useSyncError = () => useSyncExternalStore(subscribe, () => syncError, () => null)
 
 export function reportSyncError(message: string) {
@@ -55,6 +65,7 @@ export function resetRemote() {
   ctx = null
   hydration = 'idle'
   syncError = null
+  accountStatus = null
   resetters.forEach((fn) => fn())
   emit()
 }

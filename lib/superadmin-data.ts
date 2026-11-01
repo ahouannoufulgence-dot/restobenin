@@ -193,3 +193,22 @@ export function signupSeriesFrom(values: number[], months: number, now = new Dat
     return { label: label.charAt(0).toUpperCase() + label.slice(1), value }
   })
 }
+
+/** Suspend ou réactive un restaurant (Super Admin). Le motif est conservé dans le journal des actions. Lance une erreur si la base refuse. */
+export async function setRestaurantStatus(restaurantId: string, status: 'actif' | 'suspendu', reason: string): Promise<void> {
+  const { error } = await getSupabase().rpc('admin_set_subscription_status', { p_restaurant: restaurantId, p_status: status, p_reason: reason.trim() || null })
+  if (error) throw new Error(error.message)
+}
+
+export type AuditRow = { id: string; action: 'suspension' | 'reactivation'; restaurant: string; reason: string; createdAt: string }
+
+/** Dernières actions du Super Admin (suspensions et réactivations). */
+export async function loadAuditLog(): Promise<AuditRow[]> {
+  const { data, error } = await getSupabase()
+    .from('platform_audit_log')
+    .select('id, action, restaurant_name, detail, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((r) => ({ id: r.id as string, action: r.action as AuditRow['action'], restaurant: r.restaurant_name as string, reason: (r.detail as string | null) ?? '', createdAt: r.created_at as string }))
+}
