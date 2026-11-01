@@ -122,9 +122,6 @@ export function ManagerApp() {
     }
   }, [noHome, access.home])
 
-  if (session === undefined || session === null) return null
-
-  // Base de données : on attend les données du restaurant avant d'afficher quoi que ce soit.
   // Mode base de données : on relit les commandes toutes les 8 secondes (nouvelles commandes des clients, cuisine sur un autre appareil).
   useEffect(() => {
     if (!supabaseConfigured || hydration !== 'ready') return
@@ -151,6 +148,9 @@ export function ManagerApp() {
     }
   }, [hydration])
 
+  if (session === undefined || session === null) return null
+
+  // Base de données : on attend les données du restaurant avant d'afficher quoi que ce soit.
   if (supabaseConfigured && hydration !== 'ready') {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-background px-6">
