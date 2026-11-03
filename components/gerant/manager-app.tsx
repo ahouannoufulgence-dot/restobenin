@@ -8,7 +8,7 @@ import { getPlan, teamLimits } from '@/lib/plans'
 import { getSession, restoreRemoteSession, signOut, type Session } from '@/lib/auth'
 import { supabaseConfigured } from '@/lib/supabase/client'
 import { hydrate, refreshAccountStatus } from '@/lib/supabase/hydrate'
-import { clearSyncError, isRemote, useAccountStatus, useHydration, useSyncError } from '@/lib/supabase/runtime'
+import { clearSyncError, isRemote, useAccountState, useHydration, useSyncError } from '@/lib/supabase/runtime'
 import { findEmployee, useEmployees } from '@/lib/employees-store'
 import { accessFor, usePermissionOverrides } from '@/lib/permissions'
 import { summarize, useStock } from '@/lib/stock-store'
@@ -18,6 +18,7 @@ import { menuActions, useMenu } from '@/lib/menu-store'
 import { isUnpaid, ordersActions, refreshRemoteOrders, useOrders } from '@/lib/orders-store'
 import { todayStats } from '@/lib/reports'
 import { tableNumber, useSettings } from '@/lib/settings-store'
+import { ExpiredScreen } from './expired-screen'
 import { WelcomeScreen } from './welcome-screen'
 import { BottomNav, Sidebar } from './manager-nav'
 import { DashboardScreen } from './dashboard-screen'
@@ -55,7 +56,7 @@ export function ManagerApp() {
 
   const hydration = useHydration()
   const syncError = useSyncError()
-  const accountStatus = useAccountStatus()
+  const accountState = useAccountState()
 
   useEffect(() => {
     let current = getSession()
@@ -132,8 +133,8 @@ export function ManagerApp() {
           await refreshRemoteOrders() // état illisible : on continue comme avant
           return
         }
-        if (res.current !== 'actif') return // restaurant suspendu : rien à relire
-        if (res.previous && res.previous !== 'actif') {
+        if (res.current.status !== 'actif') return // restaurant suspendu : rien à relire
+        if (res.previous && res.previous.status !== 'actif') {
           await hydrate() // réactivé : on recharge tout
           return
         }
@@ -172,14 +173,30 @@ export function ManagerApp() {
     )
   }
 
-  // Abonnement suspendu ou résilié par la plateforme : l'équipe ne peut plus travailler (la base refuse aussi toute écriture).
-  if (supabaseConfigured && accountStatus && accountStatus !== 'actif') {
+  // Abonnement suspendu ou résilié : l'équipe ne peut plus travailler (la base refuse aussi toute écriture).
+  if (supabaseConfigured && accountState && accountState.status !== 'actif') {
+    // Fin d'essai ou de période payée : le gérant peut payer pour réactiver tout de suite.
+    if (accountState.status === 'suspendu' && accountState.suspendedBy === 'expiration' && account) {
+      return (
+        <ExpiredScreen
+          restaurant={account.restaurant}
+          planId={account.planId}
+          billing={account.billing}
+          memberCount={employees.length}
+          onRecheck={() => {
+            clearSyncError()
+            void hydrate()
+          }}
+          onSignOut={signOut}
+        />
+      )
+    }
     return (
       <main className="flex min-h-dvh items-center justify-center bg-background px-6">
         <div role="alert" className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)]">
-          <h1 className="font-serif text-3xl font-semibold">{accountStatus === 'resilie' ? 'Abonnement résilié' : 'Compte suspendu'}</h1>
+          <h1 className="font-serif text-3xl font-semibold">{accountState.status === 'resilie' ? 'Abonnement résilié' : 'Compte suspendu'}</h1>
           <p className="mt-3 text-muted-foreground">
-            L’abonnement de votre établissement n’est pas actif. Les commandes, l’encaissement et les modifications sont bloqués, et vos clients ne peuvent plus commander.
+            Votre établissement a été suspendu par RestoBen. Les commandes, l’encaissement et les modifications sont bloqués, et vos clients ne peuvent plus commander.
             Contactez le support RestoBen pour régulariser votre situation.
           </p>
           <div className="mt-6 grid gap-2">

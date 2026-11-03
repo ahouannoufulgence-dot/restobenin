@@ -8,11 +8,13 @@ export type RemoteContext = { restaurantId: string; userId: string; staffId: str
 export type Hydration = 'idle' | 'loading' | 'ready' | 'error'
 /** État de l'abonnement du restaurant connecté : seul « actif » permet de travailler (sinon lecture seule). */
 export type AccountStatus = 'actif' | 'suspendu' | 'resilie'
+/** `suspendedBy` : « expiration » (fin d'essai ou de période : un paiement réactive) ou « plateforme » (décision du Super Admin). */
+export type AccountState = { status: AccountStatus; suspendedBy: 'plateforme' | 'expiration' | null; accessUntil: number | null }
 
 let ctx: RemoteContext | null = null
 let hydration: Hydration = 'idle'
 let syncError: string | null = null
-let accountStatus: AccountStatus | null = null
+let accountState: AccountState | null = null
 let rehydrator: (() => Promise<boolean>) | null = null
 const resetters = new Set<() => void>()
 const listeners = new Set<() => void>()
@@ -39,11 +41,14 @@ export function setHydration(next: Hydration) {
 }
 
 export const useHydration = () => useSyncExternalStore(subscribe, () => hydration, () => 'idle' as Hydration)
-export const useAccountStatus = () => useSyncExternalStore(subscribe, () => accountStatus, () => null)
-export const getAccountStatus = () => accountStatus
-export function setAccountStatus(next: AccountStatus | null) {
-  if (accountStatus === next) return
-  accountStatus = next
+export const useAccountState = () => useSyncExternalStore(subscribe, () => accountState, () => null)
+export const useAccountStatus = () => useSyncExternalStore(subscribe, () => accountState?.status ?? null, () => null)
+export const getAccountStatus = () => accountState?.status ?? null
+export const getAccountState = () => accountState
+export function setAccountState(next: AccountState | null) {
+  const same = accountState === next || (accountState && next && accountState.status === next.status && accountState.suspendedBy === next.suspendedBy && accountState.accessUntil === next.accessUntil)
+  if (same) return
+  accountState = next
   emit()
 }
 export const useSyncError = () => useSyncExternalStore(subscribe, () => syncError, () => null)
@@ -65,7 +70,7 @@ export function resetRemote() {
   ctx = null
   hydration = 'idle'
   syncError = null
-  accountStatus = null
+  accountState = null
   resetters.forEach((fn) => fn())
   emit()
 }
