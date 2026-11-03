@@ -23,7 +23,7 @@ sont appliqués **côté serveur**.
 | Espace client (QR code), suivi de commande et avis | **Branché** (le QR code contient l'identifiant du restaurant : `/client?r=<slug>&table=<n>`) |
 | Super Admin (tableau de bord, restaurants, abonnements, paiements, support, utilisateurs, formules) | **Branché** (lecture seule, sauf l'état des tickets) |
 | Suspendre / réactiver un restaurant, modifier les tarifs depuis le Super Admin | À faire |
-| Paiement réel des abonnements | À faire : aujourd'hui un gérant peut changer de formule sans payer |
+| Essai gratuit de 20 jours, paiement des abonnements (FedaPay), suspension automatique à l'échéance | **Branché en mode test** : à activer avec les clés FedaPay (voir « Paiement des abonnements ») |
 
 Sans les variables Supabase, l'application reste en mode démonstration (données d'exemple enregistrées dans le navigateur).
 Avec elles, plus aucune donnée d'exemple n'est affichée : chaque restaurant a ses propres données.
@@ -110,3 +110,32 @@ supabase db dump --db-url "..." --data-only -f donnees.sql
 
 La sauvegarde ne contient **pas** les photos (stockage `restaurant-media`) : elles sont à copier à part.
 Conservez ces fichiers hors du dépôt GitHub, qui est public.
+
+## Paiement des abonnements (FedaPay)
+
+**Fonctionnement.** Un nouveau restaurant a 20 jours d'essai gratuit. À l'échéance, il est suspendu automatiquement
+(vérification toutes les 10 minutes) et son gérant voit un écran « Votre période d'accès est terminée » avec le paiement.
+Le gérant paie par Mobile Money sur la page FedaPay ; FedaPay prévient notre serveur, qui vérifie la signature, relit la
+transaction chez FedaPay, puis la base confirme le paiement (montant comparé au montant attendu, paiement compté une seule
+fois) et prolonge l'accès. La période payée commence à la fin de la période déjà acquise : aucun jour d'essai n'est perdu.
+
+**Mise en service (mode test, sans vérification de documents).**
+1. FedaPay > mode Test > clés API : copier la clé secrète (`sk_sandbox_…`).
+2. FedaPay > Webhooks > créer un point de terminaison :
+   - adresse : `https://VOTRE-SITE/api/billing/webhook`
+   - événements : `transaction.approved`, `transaction.declined`, `transaction.canceled`
+   - copier la clé de signature qu'il affiche (`wh_sandbox_…`).
+3. Vercel > Settings > Environment Variables : saisir `FEDAPAY_SECRET_KEY`, `FEDAPAY_WEBHOOK_SECRET`, `FEDAPAY_ENV=sandbox`
+   et `SUPABASE_SERVICE_ROLE_KEY` (Supabase > Project Settings > API > service_role), puis **redéployer**.
+4. Essayer : un restaurant de test > Abonnement > Payer, avec les numéros de test fournis par FedaPay.
+
+**Passage en mode réel** (après validation du compte FedaPay : documents à remplir et à signer) : remplacer les clés par
+les clés `live`, mettre `FEDAPAY_ENV=live`, recréer le point de terminaison de notification en mode réel, redéployer, puis
+faire un premier paiement réel de faible montant. Ajouter son numéro de réception (MTN Bénin ou Moov Bénin) dans FedaPay.
+
+**Sécurité.** Le prix est calculé par la base (jamais lu dans la requête). Seul le serveur (clé de service) peut confirmer un
+paiement. La signature des notifications est vérifiée avec la bibliothèque officielle, et la transaction est relue chez
+FedaPay avant toute confirmation. La clé `service_role` ne doit exister que dans Vercel.
+
+**Dépendance.** La bibliothèque FedaPay embarque axios 0.28, qui a de nombreuses failles connues : `pnpm-workspace.yaml`
+force la version corrigée 0.34.0 (`overrides`). À retirer quand FedaPay publiera une mise à jour.

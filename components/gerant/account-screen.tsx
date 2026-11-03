@@ -1,5 +1,7 @@
 'use client'
 
+import { isRemote } from '@/lib/supabase/runtime'
+import { CheckoutForm } from './checkout-form'
 import Link from 'next/link'
 import { useState } from 'react'
 import {
@@ -116,6 +118,9 @@ export function AccountScreen({
   // Sans compte (mode démonstration), on montre un aperçu de la formule Standard.
   const [demoStart] = useState(() => Date.now())
   const real = account !== null
+  const remote = real && isRemote()
+  // Mode base de données : les paiements sont réels (FedaPay). Seule la démonstration est simulée.
+  const simulated = PAYMENTS_SIMULATED && !remote
   const shown: Account = account ?? {
     restaurant: restaurantName,
     manager: '',
@@ -129,7 +134,7 @@ export function AccountScreen({
   }
 
   const [selected, setSelected] = useState<PlanId | null>(null)
-  const [dialog, setDialog] = useState<null | 'plan' | 'payment'>(null)
+  const [dialog, setDialog] = useState<null | 'plan' | 'payment' | 'pay'>(null)
   const [notice, setNotice] = useState('')
   const [invoiceBusy, setInvoiceBusy] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
@@ -150,7 +155,7 @@ export function AccountScreen({
     setInvoiceBusy(true)
     setNotice('')
     try {
-      await exportInvoicePdf(shown, restaurantName, phone, PAYMENTS_SIMULATED)
+      await exportInvoicePdf(shown, restaurantName, phone, simulated)
     } catch {
       setNotice('Impossible de générer la facture. Réessayez.')
     } finally {
@@ -214,7 +219,7 @@ export function AccountScreen({
           </p>
           <p className="mt-1 flex items-start gap-1.5 text-[12.5px] sm:gap-2 sm:text-sm">
             <CalendarDays className="mt-0.5 size-4 shrink-0 text-foreground/70" strokeWidth={1.6} aria-hidden="true" />
-            <span>Prochain paiement : {day(next)}</span>
+            <span>{remote && shown.accessUntil ? `${shown.hasPaid ? 'Payé jusqu’au' : 'Fin de l’essai gratuit'} : ${day(shown.accessUntil)}` : `Prochain paiement : ${day(next)}`}</span>
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1 self-center rounded-full border border-success/60 bg-success/10 px-2 py-1 text-xs font-medium text-success max-[359px]:hidden sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-sm">
@@ -222,6 +227,9 @@ export function AccountScreen({
           Actif
         </span>
       </section>
+
+      {/* Accès : essai gratuit ou période payée (mode base de données) */}
+      {remote && shown.accessUntil && <AccessBanner accessUntil={shown.accessUntil} paid={!!shown.hasPaid} onPay={() => { setNotice(''); setDialog('pay') }} />}
 
       {/* Changer de formule */}
       <SectionLabel>Changer de formule</SectionLabel>
@@ -317,7 +325,7 @@ export function AccountScreen({
       <div className="mt-4 grid gap-2.5">
         <button
           type="button"
-          onClick={() => (real ? (target ? setDialog('plan') : undefined) : needAccount())}
+          onClick={() => (real ? (target ? setDialog(remote && shown.hasPaid ? 'pay' : 'plan') : undefined) : needAccount())}
           disabled={real && !target}
           className={cn(
             'flex h-14 w-full items-center gap-3 rounded-xl bg-gradient-to-b from-ember to-ember-deep px-4 text-lg font-semibold text-primary-foreground shadow-lg shadow-ember-deep/30 transition-colors hover:from-ember-deep hover:to-ember-deep disabled:opacity-60',
@@ -330,7 +338,7 @@ export function AccountScreen({
           </span>
           <ChevronRight className="size-5 shrink-0" aria-hidden="true" />
         </button>
-        <OutlineRow icon={CreditCard} label="Gérer le paiement" onClick={() => (real ? setDialog('payment') : needAccount())} />
+        {!remote && <OutlineRow icon={CreditCard} label="Gérer le paiement" onClick={() => (real ? setDialog('payment') : needAccount())} />}
         <OutlineRow icon={Download} label={invoiceBusy ? 'Création de la facture…' : 'Télécharger la facture'} onClick={downloadInvoice} disabled={invoiceBusy} />
 
         {real && (
@@ -387,6 +395,11 @@ export function AccountScreen({
           }}
         />
       )}
+      {dialog === 'pay' && real && (
+        <Modal title="Payer mon abonnement" onClose={() => setDialog(null)}>
+          <CheckoutForm initialPlan={target ?? shown.planId} initialBilling={shown.billing} memberCount={memberCount} />
+        </Modal>
+      )}
       {dialog === 'payment' && real && (
         <PaymentDialog
           account={shown}
@@ -398,6 +411,26 @@ export function AccountScreen({
         />
       )}
     </div>
+  )
+}
+
+/** Mode base de données : où en est l'accès du restaurant (essai gratuit ou période payée) et comment payer. */
+function AccessBanner({ accessUntil, paid, onPay }: { accessUntil: number; paid: boolean; onPay: () => void }) {
+  const days = Math.max(0, Math.ceil((accessUntil - Date.now()) / 86_400_000))
+  const soon = days <= 5
+  const plural = `${days} jour${days > 1 ? 's' : ''}`
+  return (
+    <section aria-label="Accès" className={cn('mt-5 rounded-2xl border p-4 shadow-[0_8px_24px_-16px_rgba(74,36,14,0.3)]', soon ? 'border-gold bg-gold/15' : 'border-border bg-card')}>
+      <p className="font-serif text-xl font-semibold">{paid ? `Abonnement payé : ${plural} restant${days > 1 ? 's' : ''}` : `Essai gratuit : ${plural} restant${days > 1 ? 's' : ''}`}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {paid
+          ? `Valable jusqu’au ${day(accessUntil)}. Vous pouvez renouveler à tout moment : la nouvelle période s’ajoute à la fin de la vôtre.`
+          : `Jusqu’au ${day(accessUntil)}. Payez avant la fin pour continuer sans interruption : les jours d’essai restants sont conservés.`}
+      </p>
+      <button type="button" onClick={onPay} className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-b from-ember to-ember-deep text-sm font-semibold text-primary-foreground shadow-md shadow-ember-deep/25 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40">
+        {paid ? 'Renouveler mon abonnement' : 'Payer mon abonnement'}
+      </button>
+    </section>
   )
 }
 
@@ -461,7 +494,7 @@ function PlanDialog({ account, targetId, memberCount, onClose, onDone }: { accou
       <p className="mt-3 text-sm text-muted-foreground">
         Paiement via {account.paymentMethod}. Le nouveau tarif s’applique dès aujourd’hui ; prochain paiement le {day(nextDate)}.
       </p>
-      {PAYMENTS_SIMULATED && <p className="mt-3 rounded-xl bg-gold/15 p-3 text-xs leading-relaxed text-[#6b4510]">Paiement simulé : aucun prélèvement réel n’est effectué pour le moment.</p>}
+      {PAYMENTS_SIMULATED && !isRemote() && <p className="mt-3 rounded-xl bg-gold/15 p-3 text-xs leading-relaxed text-[#6b4510]">Paiement simulé : aucun prélèvement réel n’est effectué pour le moment.</p>}
       {error && (
         <p role="alert" className="mt-3 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">
           {error}

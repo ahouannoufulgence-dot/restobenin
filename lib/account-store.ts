@@ -25,6 +25,10 @@ export type Account = {
   createdAt: number
   /** Date du dernier changement de formule (sinon la date d'inscription). */
   planChangedAt?: number
+  /** Mode base de données : fin de la période d'accès (fin d'essai, puis fin de la période payée). */
+  accessUntil?: number
+  /** Mode base de données : au moins un paiement réel a été reçu (sinon le restaurant est encore en essai). */
+  hasPaid?: boolean
   /** Dernière facture enregistrée en base (mode base de données). */
   lastInvoice?: { number: string; periodStart: number; periodEnd: number; amount: number }
 }

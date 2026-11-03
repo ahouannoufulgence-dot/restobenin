@@ -9,7 +9,7 @@ import { applyRemoteStock, type StockItem, type StockMovement } from '@/lib/stoc
 import { applyRemoteTables } from '@/lib/tables-store'
 import { publicUrl } from './api'
 import { getSupabase } from './client'
-import { type AccountStatus, friendlyError, getAccountStatus, getRemote, reportSyncError, setAccountStatus, setHydration, setRehydrator } from './runtime'
+import { type AccountState, type AccountStatus, friendlyError, getAccountState, getRemote, reportSyncError, setAccountState, setHydration, setRehydrator } from './runtime'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -30,6 +30,7 @@ export async function hydrate(): Promise<boolean> {
       sb
         .from('subscription_payments')
         .select('invoice_number, period_start, period_end, amount_fcfa')
+        .eq('status', 'payee')
         .eq('restaurant_id', ctx.restaurantId)
         .order('created_at', { ascending: false })
         .limit(1),
@@ -43,7 +44,7 @@ export async function hydrate(): Promise<boolean> {
     if (t.error) throw new Error(t.error.message)
 
     const rest = r.data as any
-    setAccountStatus(rest.subscription as AccountStatus)
+    setAccountState({ status: rest.subscription as AccountStatus, suspendedBy: rest.suspended_by ?? null, accessUntil: Date.parse(rest.access_until) })
     const staffRows = (s.data ?? []) as any[]
     const me = staffRows.find((x) => x.id === ctx.staffId)
 
@@ -137,6 +138,8 @@ export async function hydrate(): Promise<boolean> {
     applyRemotePermissions(overrides)
 
     const last = ((inv.data ?? []) as any[])[0]
+    // Au moins un vrai paiement reçu ? (sinon le restaurant est encore dans sa période d'essai.)
+    const paid = await sb.from('subscription_payments').select('id', { count: 'exact', head: true }).eq('restaurant_id', ctx.restaurantId).eq('status', 'payee').not('provider', 'is', null)
     const account: Account = {
       restaurant: rest.name,
       manager: me?.name ?? '',
@@ -148,6 +151,8 @@ export async function hydrate(): Promise<boolean> {
       paymentMethod: rest.payment_method,
       createdAt: Date.parse(rest.created_at),
       planChangedAt: Date.parse(rest.plan_changed_at),
+      accessUntil: Date.parse(rest.access_until),
+      hasPaid: (paid.count ?? 0) > 0,
       lastInvoice: last
         ? { number: last.invoice_number, periodStart: Date.parse(last.period_start), periodEnd: Date.parse(last.period_end), amount: last.amount_fcfa }
         : undefined,
@@ -169,15 +174,15 @@ setRehydrator(hydrate)
  * Relit l'état de l'abonnement (appelé régulièrement) : une suspension ou une réactivation décidée par le Super Admin
  * doit se voir sans que le gérant ait à recharger la page. Renvoie l'état d'avant et d'après, ou null si la lecture échoue.
  */
-export async function refreshAccountStatus(): Promise<{ previous: AccountStatus | null; current: AccountStatus } | null> {
+export async function refreshAccountStatus(): Promise<{ previous: AccountState | null; current: AccountState } | null> {
   const ctx = getRemote()
   if (!ctx) return null
   try {
-    const { data, error } = await getSupabase().from('restaurants').select('subscription').eq('id', ctx.restaurantId).maybeSingle()
+    const { data, error } = await getSupabase().from('restaurants').select('subscription, suspended_by, access_until').eq('id', ctx.restaurantId).maybeSingle()
     if (error || !data) return null
-    const previous = getAccountStatus()
-    const current = data.subscription as AccountStatus
-    setAccountStatus(current)
+    const previous = getAccountState()
+    const current: AccountState = { status: data.subscription as AccountStatus, suspendedBy: (data.suspended_by as AccountState['suspendedBy']) ?? null, accessUntil: Date.parse(data.access_until as string) }
+    setAccountState(current)
     return { previous, current }
   } catch {
     return null

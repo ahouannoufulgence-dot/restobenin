@@ -6,3 +6,9 @@ minimumReleaseAgeExclude:
 
 allowBuilds:
   core-js: false
+
+# La bibliothèque FedaPay embarque axios 0.28, qui cumule de nombreuses failles connues (requêtes serveur détournées,
+# fuite d'identifiants, pollution de prototype). Cette version (0.34.0, publiée depuis plus de deux semaines) les corrige
+# tout en restant de la même famille, donc compatible. À retirer quand FedaPay publiera une mise à jour.
+overrides:
+  axios: 0.34.0
