@@ -111,6 +111,7 @@ function authMessage(message: string): string {
   if (/invalid login credentials/i.test(message)) return WRONG
   if (/email not confirmed/i.test(message)) return NOT_CONFIRMED
   if (/rate limit|too many/i.test(message)) return 'Trop de tentatives. Patientez quelques minutes.'
+  if (/token has expired|otp|invalid token/i.test(message)) return 'Code incorrect ou expiré. Vérifiez le code, ou demandez-en un nouveau avec « Renvoyer l’e-mail ».'
   if (/password.*(short|least|weak)/i.test(message)) return 'Le mot de passe est trop court ou trop faible.'
   return friendlyError(message)
 }
@@ -192,6 +193,18 @@ export async function signUpAccount(email: string, password: string, fullName: s
     return { ok: false, error: 'Cette adresse e-mail est déjà utilisée. Connectez-vous, ou utilisez le mot de passe de votre compte.' }
   }
   return { ok: true, verified: !!data.session }
+}
+
+/**
+ * Confirme l'adresse e-mail avec le code reçu dans le message (de 6 à 10 chiffres selon le réglage de Supabase).
+ * Plus pratique que le lien sur téléphone : la personne reste dans l'application. Ouvre la session si le code est bon.
+ * Renvoie un message d'erreur, ou null si tout est bon.
+ */
+export async function verifyEmailCode(email: string, code: string): Promise<string | null> {
+  const token = code.replace(/\D/g, '')
+  if (token.length < 6) return 'Saisissez le code reçu par e-mail.'
+  const { error } = await getSupabase().auth.verifyOtp({ email: email.trim().toLowerCase(), token, type: 'signup' })
+  return error ? authMessage(error.message) : null
 }
 
 /** Vérifie que l'e-mail est confirmé : la connexion ne réussit qu'après le clic sur le lien reçu. */

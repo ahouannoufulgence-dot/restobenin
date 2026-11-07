@@ -21,7 +21,7 @@ export async function completeSignup(data: AccountData, planId: PlanId, billing:
   return completeLocalSignup(data, planId, billing, paymentMethod) ? null : 'Enregistrement impossible : le stockage du navigateur est plein.'
 }
 
-/** Mode base de données : la fonction `create_restaurant` crée tout (restaurant, gérant, droits, tables, facture). */
+/** Mode base de données : la fonction `create_restaurant` crée tout (restaurant, gérant, droits, tables) et accorde 20 jours d'essai gratuit. */
 async function completeRemoteSignup(data: AccountData, planId: PlanId, billing: Billing, paymentMethod: string): Promise<string | null> {
   const sb = getSupabase()
   const { data: userData } = await sb.auth.getUser()

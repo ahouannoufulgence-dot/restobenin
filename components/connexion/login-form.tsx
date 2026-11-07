@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Check, Eye, EyeOff, Flame, Lock, Mail, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DEMO_AUTH, MIN_PASSWORD, activateEmployee, isValidEmail, isValidIdentifier, signIn, type Role } from '@/lib/auth'
+import { DEMO_AUTH, MIN_PASSWORD, activateEmployee, isValidEmail, isValidIdentifier, signIn, verifyEmailCode, type Role } from '@/lib/auth'
+import { EmailCodeBox } from './email-code-box'
 import { supabaseConfigured } from '@/lib/supabase/client'
 import { legal } from '@/lib/legal-info'
 
@@ -30,6 +31,7 @@ export function LoginForm() {
   const [busy, setBusy] = useState(false)
   // Première connexion d'un employé (mode base de données) : il crée son mot de passe.
   const [activating, setActivating] = useState(false)
+  const [awaitingCode, setAwaitingCode] = useState(false)
   const identifierRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
 
@@ -59,8 +61,8 @@ export function LoginForm() {
       setBusy(false)
       if (!activated.ok) return setErrors({ form: activated.error })
       setActivating(false)
-      setPassword('')
-      return setInfo('Accès créé. Un e-mail de confirmation vient de vous être envoyé : cliquez sur le lien, puis connectez-vous ici.')
+      setAwaitingCode(true)
+      return setInfo('Accès créé. Un e-mail vient de vous être envoyé : saisissez le code qu’il contient ci-dessous (ou cliquez sur le lien, puis connectez-vous).')
     }
     const result = await signIn(identifier, password, remember, role)
     if (!result.ok) {
@@ -238,6 +240,20 @@ export function LoginForm() {
               <p role="status" className="rounded-xl bg-gold/15 p-3 text-center text-sm text-[#6b4510]">
                 {info}
               </p>
+            )}
+
+            {awaitingCode && (
+              <EmailCodeBox
+                onSubmit={async (code) => {
+                  const failure = await verifyEmailCode(identifier, code)
+                  if (failure) return failure
+                  // Adresse confirmée : on ouvre directement la session avec le mot de passe choisi.
+                  const result = await signIn(identifier, password, remember, role)
+                  if (!result.ok) return result.error
+                  router.push('/gerant')
+                  return null
+                }}
+              />
             )}
 
             <button

@@ -139,3 +139,27 @@ FedaPay avant toute confirmation. La clé `service_role` ne doit exister que dan
 
 **Dépendance.** La bibliothèque FedaPay embarque axios 0.28, qui a de nombreuses failles connues : `pnpm-workspace.yaml`
 force la version corrigée 0.34.0 (`overrides`). À retirer quand FedaPay publiera une mise à jour.
+
+## E-mails d'inscription : envoi vers Gmail (et les autres) avec un code de confirmation
+
+**Pourquoi.** Le service d'e-mails fourni par défaut par Supabase n'envoie qu'aux membres de l'organisation et à très faible
+cadence : un vrai restaurant ne recevrait rien. De plus, un lien de confirmation est peu pratique sur téléphone (il s'ouvre dans
+un autre navigateur, et les protections de Gmail peuvent même l'« utiliser » avant la personne). L'application demande donc un
+**code à saisir** dans la page d'inscription (le lien reste proposé en secours).
+
+**À faire dans Supabase (Authentication), dans cet ordre :**
+1. **Emails > SMTP Settings** : activer « Custom SMTP » avec un service d'envoi (Brevo, Resend…). Saisir l'adresse d'expédition,
+   le nom d'expéditeur (RestoBen), l'hôte, le port et les identifiants SMTP donnés par le service. Avec un nom de domaine à
+   vous, ajouter les enregistrements SPF et DKIM demandés par le service : sans cela, beaucoup de messages arrivent dans les
+   courriers indésirables de Gmail. Éviter une adresse d'expédition en @gmail.com : Gmail refuse ou classe en indésirable les
+   messages envoyés « au nom » de Gmail par un autre serveur.
+2. **Emails > Templates > Confirm signup** : coller le contenu de `supabase/email-templates/confirm-signup.html`
+   (il affiche `{{ .Token }}`, le code) et mettre l'objet : « Votre code de confirmation RestoBen ».
+3. **Providers > Email** : vérifier que « Confirm email » est activé. La longueur du code (6 à 10 chiffres) et sa durée de
+   validité se règlent ici ; l'application accepte 6 à 10 chiffres.
+4. **Rate Limits** : après le branchement du SMTP, relever la limite d'e-mails par heure si besoin.
+5. Tester avec une adresse Gmail qui n'est pas celle du propriétaire du projet : le message doit arriver avec le code.
+
+**Dans l'application.** Inscription du gérant et activation d'un employé : saisie du code (type `signup`). L'étape « Paiement » de
+l'inscription devient « Essai gratuit » (aucun paiement, 20 jours). Le « mot de passe oublié » n'existe pas encore : il suivra
+le même principe (code reçu par e-mail).

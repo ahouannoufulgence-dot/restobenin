@@ -1,8 +1,10 @@
 import { Check } from 'lucide-react'
 import { Logo } from '@/components/restoben/logo'
 import { cn } from '@/lib/utils'
+import { supabaseConfigured } from '@/lib/supabase/client'
 
-export const signupSteps = ['Compte', 'Vérification', 'Abonnement', 'Paiement', 'Confirmation'] as const
+// Avec la base de données, l'inscription ne comporte aucun paiement : l'essai gratuit démarre tout de suite.
+export const signupSteps = ['Compte', 'Vérification', 'Abonnement', supabaseConfigured ? 'Essai gratuit' : 'Paiement', 'Confirmation']
 
 export function SignupHeader({ step }: { step: number }) {
   const total = signupSteps.length
