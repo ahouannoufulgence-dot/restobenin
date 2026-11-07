@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Hourglass } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -8,17 +8,24 @@ import { fcfa } from '@/lib/gerant-data'
 import { DEMO_SUPERADMIN } from '@/lib/superadmin-auth'
 import { friendlyError } from '@/lib/supabase/runtime'
 import {
+  confirmManualPayment,
   loadAuditLog,
+  loadPaymentInfo,
   loadPayments,
+  loadPendingPayments,
   loadPlans,
   loadRestaurants,
   loadSubscriptions,
   loadTickets,
   loadUsers,
+  rejectManualPayment,
+  savePaymentInfo,
   setRestaurantStatus,
   updateTicketStatus,
   type AuditRow,
+  type PaymentInfo,
   type PaymentRow,
+  type PendingPayment,
   type PlanRow,
   type RestaurantRow,
   type RestaurantStatus,
@@ -307,24 +314,135 @@ function SubscriptionsSection() {
 
 const paymentLabel: Record<PaymentRow['status'], [string, Tone]> = { payee: ['Payée', 'ok'], en_attente: ['En attente', 'warn'], echec: ['Échec', 'bad'] }
 
-function PaymentsSection() {
-  const { data, error } = useLoad(loadPayments)
+/** Fenêtre de décision sur un paiement manuel : valider (en saisissant le montant reçu) ou refuser. */
+function PaymentDecisionDialog({ payment, mode, onCancel, onDone }: { payment: PendingPayment; mode: 'confirm' | 'reject'; onCancel: () => void; onDone: (message: string) => void }) {
+  const [value, setValue] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState('')
+  const confirming = mode === 'confirm'
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [busy, onCancel])
+
+  async function submit() {
+    setFailure('')
+    if (confirming && !/^\d+$/.test(value.trim())) return setFailure('Saisissez le montant reçu, en chiffres.')
+    setBusy(true)
+    try {
+      if (confirming) await confirmManualPayment(payment.id, Number(value.trim()))
+      else await rejectManualPayment(payment.id, value)
+      onDone(confirming ? `Paiement de ${payment.restaurant} validé : l’accès est prolongé.` : `Paiement de ${payment.restaurant} refusé.`)
+    } catch (e) {
+      setFailure(friendlyError(e instanceof Error ? e.message : String(e)))
+      setBusy(false)
+    }
+  }
+
   return (
-    <Panel<PaymentRow>
-      title="Paiements d’abonnement"
-      rows={data}
-      error={error}
-      empty="Aucun paiement pour le moment."
-      cols={[
-        { header: 'Facture', cell: (r) => r.invoice, className: 'whitespace-nowrap' },
-        { header: 'Restaurant', cell: (r) => r.restaurant },
-        { header: 'Formule', cell: (r) => <span className="capitalize">{r.plan}</span> },
-        { header: 'Montant', cell: (r) => fcfa(r.amountFcfa), className: 'whitespace-nowrap tabular-nums' },
-        { header: 'Moyen', cell: (r) => r.method },
-        { header: 'Période', cell: (r) => `${date(r.periodStart)} → ${date(r.periodEnd)}`, className: 'whitespace-nowrap' },
-        { header: 'Statut', cell: (r) => <Pill tone={paymentLabel[r.status][1]}>{paymentLabel[r.status][0]}</Pill> },
-      ]}
-    />
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={() => !busy && onCancel()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="decision-title" className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 id="decision-title" className="font-serif text-2xl font-semibold">
+          {confirming ? 'Valider ce paiement ?' : 'Refuser ce paiement ?'}
+        </h2>
+        <dl className="mt-3 grid gap-1 rounded-xl bg-sand/60 p-3 text-sm">
+          <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Restaurant</dt><dd className="font-medium">{payment.restaurant}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Formule</dt><dd className="font-medium capitalize">{payment.plan} · {payment.billing}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Montant attendu</dt><dd className="font-medium tabular-nums">{fcfa(payment.amountFcfa)}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-muted-foreground">N° de transaction</dt><dd className="break-all font-mono font-medium">{payment.ref}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Envoyé depuis</dt><dd className="font-medium">{payment.payerPhone}</dd></div>
+        </dl>
+        {confirming ? (
+          <>
+            <p className="mt-3 text-sm text-foreground/80">Vérifiez dans votre application Mobile Money que ce numéro de transaction figure bien dans vos messages, puis saisissez le montant que vous avez réellement reçu.</p>
+            <label htmlFor="decision-value" className="mt-3 block text-sm font-medium">Montant reçu (FCFA)</label>
+            <input id="decision-value" value={value} onChange={(e) => setValue(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="ex. 25000" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm tabular-nums outline-none focus:border-ember focus:ring-3 focus:ring-ember/20" />
+          </>
+        ) : (
+          <>
+            <label htmlFor="decision-value" className="mt-3 block text-sm font-medium">Motif <span className="font-normal text-muted-foreground">(montré au gérant)</span></label>
+            <textarea id="decision-value" value={value} onChange={(e) => setValue(e.target.value)} maxLength={300} rows={3} placeholder="ex. Aucun message reçu pour ce numéro de transaction." className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ember focus:ring-3 focus:ring-ember/20" />
+          </>
+        )}
+        {failure && <p role="alert" className="mt-3 rounded-lg bg-destructive/10 p-3 text-sm font-medium text-destructive">{failure}</p>}
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button type="button" autoFocus disabled={busy} onClick={onCancel} className="h-11 rounded-lg border border-border text-sm font-semibold hover:border-ember disabled:opacity-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">Annuler</button>
+          <button type="button" disabled={busy} onClick={() => void submit()} className={cn('h-11 rounded-lg text-sm font-semibold text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40', confirming ? 'bg-ember-deep hover:bg-ember-deep/90' : 'bg-destructive hover:bg-destructive/90')}>
+            {busy ? 'En cours…' : confirming ? 'Valider' : 'Refuser'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PaymentsSection() {
+  const [version, setVersion] = useState(0)
+  const loader = useCallback(() => loadPayments(), [version]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { data, error } = useLoad(loader)
+  const pending = useLoad(loadPendingPayments)
+  const [target, setTarget] = useState<{ payment: PendingPayment; mode: 'confirm' | 'reject' } | null>(null)
+  const [notice, setNotice] = useState('')
+
+  return (
+    <div className="grid gap-6">
+      {notice && <p role="status" className="rounded-xl bg-success/15 p-3 text-sm font-medium text-success">{notice}</p>}
+      <Panel<PendingPayment>
+        title="Paiements à valider"
+        rows={pending.data}
+        error={pending.error}
+        empty="Aucun paiement en attente de validation."
+        cols={[
+          { header: 'Restaurant', cell: (p) => p.restaurant },
+          { header: 'Formule', cell: (p) => <span className="capitalize">{p.plan} · {p.billing}</span>, className: 'whitespace-nowrap' },
+          { header: 'Montant attendu', cell: (p) => fcfa(p.amountFcfa), className: 'whitespace-nowrap tabular-nums' },
+          { header: 'N° de transaction', cell: (p) => <span className="break-all font-mono">{p.ref}</span> },
+          { header: 'Envoyé depuis', cell: (p) => p.payerPhone, className: 'whitespace-nowrap' },
+          { header: 'Déclaré le', cell: (p) => new Date(p.submittedAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ''), className: 'whitespace-nowrap' },
+          {
+            header: 'Action',
+            cell: (p) => (
+              <span className="flex gap-2">
+                <button type="button" onClick={() => { setNotice(''); setTarget({ payment: p, mode: 'confirm' }) }} className="h-9 whitespace-nowrap rounded-lg bg-ember-deep px-3 text-xs font-semibold text-white hover:bg-ember-deep/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40">Valider</button>
+                <button type="button" onClick={() => { setNotice(''); setTarget({ payment: p, mode: 'reject' }) }} className="h-9 whitespace-nowrap rounded-lg border border-destructive/40 px-3 text-xs font-semibold text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30">Refuser</button>
+              </span>
+            ),
+          },
+        ]}
+      />
+      <Panel<PaymentRow>
+        title="Paiements d’abonnement"
+        rows={data}
+        error={error}
+        empty="Aucun paiement pour le moment."
+        cols={[
+          { header: 'Facture', cell: (r) => r.invoice, className: 'whitespace-nowrap' },
+          { header: 'Restaurant', cell: (r) => r.restaurant },
+          { header: 'Formule', cell: (r) => <span className="capitalize">{r.plan}</span> },
+          { header: 'Montant', cell: (r) => fcfa(r.amountFcfa), className: 'whitespace-nowrap tabular-nums' },
+          { header: 'Moyen', cell: (r) => r.method },
+          { header: 'Période', cell: (r) => `${date(r.periodStart)} → ${date(r.periodEnd)}`, className: 'whitespace-nowrap' },
+          { header: 'Statut', cell: (r) => <Pill tone={paymentLabel[r.status][1]}>{paymentLabel[r.status][0]}</Pill> },
+        ]}
+      />
+      {target && (
+        <PaymentDecisionDialog
+          payment={target.payment}
+          mode={target.mode}
+          onCancel={() => setTarget(null)}
+          onDone={(message) => {
+            pending.setData((rows) => (rows ?? []).filter((r) => r.id !== target.payment.id))
+            setVersion((v) => v + 1)
+            setNotice(message)
+            setTarget(null)
+          }}
+        />
+      )}
+    </div>
   )
 }
 
@@ -424,24 +542,91 @@ function UsersSection() {
   )
 }
 
+function PaymentInfoPanel() {
+  const { data, error } = useLoad(loadPaymentInfo)
+  const [form, setForm] = useState<PaymentInfo>({ operator: 'MTN MoMo', phone: '', holder: '', note: '' })
+  const [loaded, setLoaded] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+
+  useEffect(() => {
+    if (data && !loaded) {
+      setForm(data)
+      setLoaded(true)
+    }
+  }, [data, loaded])
+
+  const set = (key: keyof PaymentInfo) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const field = 'mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-ember focus:ring-3 focus:ring-ember/20'
+
+  async function save() {
+    setBusy(true)
+    setMessage(null)
+    try {
+      await savePaymentInfo(form)
+      setMessage({ ok: true, text: 'Coordonnées enregistrées : les gérants les voient désormais au moment de payer.' })
+    } catch (e) {
+      setMessage({ ok: false, text: friendlyError(e instanceof Error ? e.message : String(e)) })
+    }
+    setBusy(false)
+  }
+
+  return (
+    <section aria-label="Coordonnées de paiement" className={cn(card, 'overflow-hidden')}>
+      <div className="border-b border-border px-5 py-4">
+        <h2 className="font-serif text-xl font-semibold">Où les restaurants vous paient</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Numéro Mobile Money affiché aux gérants quand ils paient leur abonnement. Tant qu’il n’est pas saisi, personne ne peut payer.</p>
+      </div>
+      <div className="grid gap-4 p-5">
+        {error && <p role="alert" className="rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">Impossible de charger : {error}</p>}
+        {!data && !error && <p role="status" className="text-sm text-muted-foreground">Chargement…</p>}
+        {data === null && !error && <p role="status" className="rounded-xl bg-gold/15 p-3 text-sm font-medium text-[#6b4510]">Aucun numéro saisi pour le moment : les gérants ne peuvent pas encore payer.</p>}
+        <div>
+          <label htmlFor="pi-operator" className="block text-sm font-medium">Service (MTN MoMo, Moov Money, Celtiis Cash)</label>
+          <input id="pi-operator" value={form.operator} onChange={set('operator')} maxLength={40} className={field} />
+        </div>
+        <div>
+          <label htmlFor="pi-phone" className="block text-sm font-medium">Numéro qui reçoit les paiements</label>
+          <input id="pi-phone" value={form.phone} onChange={set('phone')} inputMode="tel" maxLength={20} placeholder="+229 01 00 00 00 00" className={field} />
+        </div>
+        <div>
+          <label htmlFor="pi-holder" className="block text-sm font-medium">Nom du titulaire <span className="font-normal text-muted-foreground">(affiché pour que le gérant vérifie avant d’envoyer)</span></label>
+          <input id="pi-holder" value={form.holder} onChange={set('holder')} maxLength={80} className={field} />
+        </div>
+        <div>
+          <label htmlFor="pi-note" className="block text-sm font-medium">Consigne <span className="font-normal text-muted-foreground">(facultatif)</span></label>
+          <textarea id="pi-note" value={form.note} onChange={set('note')} maxLength={300} rows={2} className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ember focus:ring-3 focus:ring-ember/20" />
+        </div>
+        {message && <p role={message.ok ? 'status' : 'alert'} className={cn('rounded-xl p-3 text-sm font-medium', message.ok ? 'bg-success/15 text-success' : 'bg-destructive/10 text-destructive')}>{message.text}</p>}
+        <button type="button" onClick={() => void save()} disabled={busy} className="h-11 rounded-lg bg-ember-deep text-sm font-semibold text-white hover:bg-ember-deep/90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40">
+          {busy ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
 function SettingsSection() {
   const { data, error } = useLoad(loadPlans)
   return (
-    <>
-      <Panel<PlanRow>
-        title="Formules et tarifs"
-        rows={data}
-        error={error}
-        empty="Aucune formule."
-        cols={[
-          { header: 'Formule', cell: (p) => p.name },
-          { header: 'Prix mensuel', cell: (p) => fcfa(p.monthlyFcfa), className: 'whitespace-nowrap tabular-nums' },
-          { header: 'Prix par mois en annuel (−20 %)', cell: (p) => fcfa(Math.round(p.monthlyFcfa * 0.8)), className: 'whitespace-nowrap tabular-nums' },
-          { header: 'Limite d’équipe', cell: (p) => (p.teamLimit === null ? 'Illimitée' : `${p.teamLimit} personnes`) },
-        ]}
-      />
-      <p className="mt-3 text-sm text-muted-foreground">Affichage en lecture seule. La modification des tarifs n’est pas encore disponible.</p>
-    </>
+    <div className="grid gap-6">
+      <PaymentInfoPanel />
+      <div>
+        <Panel<PlanRow>
+          title="Formules et tarifs"
+          rows={data}
+          error={error}
+          empty="Aucune formule."
+          cols={[
+            { header: 'Formule', cell: (p) => p.name },
+            { header: 'Prix mensuel', cell: (p) => fcfa(p.monthlyFcfa), className: 'whitespace-nowrap tabular-nums' },
+            { header: 'Prix par mois en annuel (−20 %)', cell: (p) => fcfa(Math.round(p.monthlyFcfa * 0.8)), className: 'whitespace-nowrap tabular-nums' },
+            { header: 'Limite d’équipe', cell: (p) => (p.teamLimit === null ? 'Illimitée' : `${p.teamLimit} personnes`) },
+          ]}
+        />
+        <p className="mt-3 text-sm text-muted-foreground">Affichage en lecture seule. La modification des tarifs n’est pas encore disponible.</p>
+      </div>
+    </div>
   )
 }
 

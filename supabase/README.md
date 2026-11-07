@@ -23,7 +23,7 @@ sont appliqués **côté serveur**.
 | Espace client (QR code), suivi de commande et avis | **Branché** (le QR code contient l'identifiant du restaurant : `/client?r=<slug>&table=<n>`) |
 | Super Admin (tableau de bord, restaurants, abonnements, paiements, support, utilisateurs, formules) | **Branché** (lecture seule, sauf l'état des tickets) |
 | Suspendre / réactiver un restaurant, modifier les tarifs depuis le Super Admin | À faire |
-| Essai gratuit de 20 jours, paiement des abonnements (FedaPay), suspension automatique à l'échéance | **Branché en mode test** : à activer avec les clés FedaPay (voir « Paiement des abonnements ») |
+| Essai gratuit de 20 jours, paiement des abonnements, suspension automatique à l'échéance | **Branché** : paiement manuel par Mobile Money (par défaut) ; FedaPay prêt mais désactivé (voir « Paiement manuel » et « Paiement des abonnements ») |
 
 Sans les variables Supabase, l'application reste en mode démonstration (données d'exemple enregistrées dans le navigateur).
 Avec elles, plus aucune donnée d'exemple n'est affichée : chaque restaurant a ses propres données.
@@ -163,3 +163,29 @@ un autre navigateur, et les protections de Gmail peuvent même l'« utiliser » 
 **Dans l'application.** Inscription du gérant et activation d'un employé : saisie du code (type `signup`). L'étape « Paiement » de
 l'inscription devient « Essai gratuit » (aucun paiement, 20 jours). Le « mot de passe oublié » n'existe pas encore : il suivra
 le même principe (code reçu par e-mail).
+
+## Paiement manuel par Mobile Money (mode par défaut)
+
+**Pourquoi.** Un prestataire de paiement exige des documents à imprimer, signer et envoyer avant d'encaisser de vrais
+paiements. Le paiement manuel n'en demande aucun : adapté aux premiers restaurants, jusqu'à une vingtaine environ.
+
+**Parcours du gérant** (écran Abonnement, ou écran « Votre période d'accès est terminée ») : il choisit sa formule, voit le
+montant exact (calculé par la base) et votre numéro, envoie l'argent depuis son téléphone, puis saisit le numéro de transaction
+du SMS et le numéro qui a payé. Un même numéro de transaction ne peut servir qu'une fois.
+
+**Votre parcours** (Super Admin) :
+1. **Paramètres > « Où les restaurants vous paient »** : saisir une première fois votre numéro MTN ou Moov, le nom du titulaire
+   et une consigne. Tant que ce n'est pas fait, personne ne peut payer. Le numéro n'est écrit ni dans le code ni sur GitHub.
+2. **Paiements > « Paiements à valider »** (compteur sur le tableau de bord) : pour chaque demande, vérifiez dans votre
+   application Mobile Money que le numéro de transaction figure dans vos messages, puis cliquez sur **Valider** en saisissant le
+   montant réellement reçu (la base refuse un montant différent). L'accès est prolongé tout de suite ; un restaurant suspendu
+   pour fin de période est réactivé. **Refuser** permet d'indiquer un motif, montré au gérant.
+3. Chaque validation ou refus est inscrit dans le journal des actions.
+
+**Sécurité.** Seul le Super Admin peut valider. Le gérant ne peut ni valider son paiement, ni modifier vos coordonnées, ni
+réutiliser une preuve de paiement. Vérifiez toujours le SMS : un numéro de transaction saisi par un gérant est une déclaration,
+pas une preuve.
+
+**Passer au paiement automatique plus tard** : une fois le compte FedaPay vérifié, suivre « Paiement des abonnements »,
+puis mettre `NEXT_PUBLIC_PAYMENT_PROVIDER=fedapay` dans Vercel et redéployer. Tout le reste (essai, expiration, factures,
+suspension) est commun aux deux modes.

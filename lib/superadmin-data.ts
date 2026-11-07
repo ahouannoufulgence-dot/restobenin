@@ -23,6 +23,8 @@ export type Overview = {
   newThisMonth: number
   openTickets: number
   monthlyRevenue: number
+  /** Paiements manuels déclarés par un gérant, en attente de validation. */
+  pendingPayments: number
   signups12: number[]
 }
 
@@ -75,6 +77,7 @@ export async function loadAdminData(): Promise<AdminData> {
     newThisMonth: Number(s.new_this_month ?? 0),
     openTickets: Number(s.open_tickets ?? 0),
     monthlyRevenue: Number(s.monthly_revenue ?? 0),
+    pendingPayments: Number(s.pending_payments ?? 0),
     signups12: Array.isArray(s.signups_12_months) ? (s.signups_12_months as number[]).map(Number) : Array(12).fill(0),
   }
   return { overview, recent: ((list.data ?? []) as unknown as RawRestaurant[]).map(mapRestaurant) }
@@ -211,4 +214,57 @@ export async function loadAuditLog(): Promise<AuditRow[]> {
     .limit(50)
   if (error) throw new Error(error.message)
   return (data ?? []).map((r) => ({ id: r.id as string, action: r.action as AuditRow['action'], restaurant: r.restaurant_name as string, reason: (r.detail as string | null) ?? '', createdAt: r.created_at as string }))
+}
+
+/* ------------------------------------------------------------------ paiement manuel par Mobile Money */
+
+export type PendingPayment = { id: string; restaurant: string; plan: string; billing: 'Mensuel' | 'Annuel'; amountFcfa: number; ref: string; payerPhone: string; submittedAt: string }
+
+/** Paiements que des gérants disent avoir envoyés, en attente de votre vérification (les plus anciens d'abord). */
+export async function loadPendingPayments(): Promise<PendingPayment[]> {
+  const { data, error } = await getSupabase()
+    .from('subscription_payments')
+    .select('id, plan_id, billing, amount_fcfa, provider_ref, payer_phone, submitted_at, restaurants(name)')
+    .eq('provider', 'manuel')
+    .eq('status', 'en_attente')
+    .not('submitted_at', 'is', null)
+    .order('submitted_at', { ascending: true })
+    .limit(200)
+  if (error) throw new Error(error.message)
+  type Raw = { id: string; plan_id: string; billing: string; amount_fcfa: number; provider_ref: string | null; payer_phone: string | null; submitted_at: string; restaurants: { name: string } | { name: string }[] | null }
+  return ((data ?? []) as unknown as Raw[]).map((r) => ({
+    id: r.id,
+    restaurant: one(r.restaurants)?.name ?? '—',
+    plan: r.plan_id,
+    billing: r.billing === 'annuel' ? 'Annuel' : 'Mensuel',
+    amountFcfa: r.amount_fcfa,
+    ref: r.provider_ref ?? '',
+    payerPhone: r.payer_phone ?? '',
+    submittedAt: r.submitted_at,
+  }))
+}
+
+/** Valide un paiement : il faut saisir le montant réellement reçu (la base refuse un montant différent). */
+export async function confirmManualPayment(id: string, received: number): Promise<void> {
+  const { error } = await getSupabase().rpc('admin_confirm_manual_payment', { p_payment: id, p_received: received })
+  if (error) throw new Error(error.message)
+}
+
+export async function rejectManualPayment(id: string, reason: string): Promise<void> {
+  const { error } = await getSupabase().rpc('admin_reject_manual_payment', { p_payment: id, p_reason: reason.trim() })
+  if (error) throw new Error(error.message)
+}
+
+/** Vos coordonnées de réception, telles que les voient les gérants (null tant qu'elles ne sont pas saisies). */
+export type PaymentInfo = { operator: string; phone: string; holder: string; note: string }
+
+export async function loadPaymentInfo(): Promise<PaymentInfo | null> {
+  const { data, error } = await getSupabase().rpc('payment_instructions')
+  if (error) throw new Error(error.message)
+  return (data as PaymentInfo | null) ?? null
+}
+
+export async function savePaymentInfo(info: PaymentInfo): Promise<void> {
+  const { error } = await getSupabase().rpc('admin_set_payment_instructions', { p_operator: info.operator, p_phone: info.phone, p_holder: info.holder, p_note: info.note })
+  if (error) throw new Error(error.message)
 }
