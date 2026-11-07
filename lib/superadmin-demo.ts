@@ -30,6 +30,7 @@ export const demoKpis = {
   monthlyRevenue: 19_800_000,
   newThisMonth: 64,
   openTickets: 12,
+  pendingPayments: 0,
 }
 
 /** Inscriptions par mois sur les 12 derniers mois (le dernier = mois en cours). */

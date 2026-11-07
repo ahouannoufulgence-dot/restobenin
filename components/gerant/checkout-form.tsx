@@ -4,6 +4,10 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { startCheckout } from '@/lib/billing-client'
+import { type ManualIntent, createManualPayment } from '@/lib/manual-payment'
+import { PAYMENT_PROVIDER } from '@/lib/payments-config'
+import { hydrate } from '@/lib/supabase/hydrate'
+import { ManualPayment } from './manual-payment'
 import { ANNUAL_DISCOUNT, type Billing, type PlanId, amountDue, formatFCFA, getPlan, monthlyPrice, plans } from '@/lib/plans'
 
 const focusRing = 'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40'
@@ -17,6 +21,7 @@ export function CheckoutForm({ initialPlan, initialBilling, memberCount = 0 }: {
   const [billing, setBilling] = useState<Billing>(initialBilling)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [manual, setManual] = useState<ManualIntent | null>(null)
   const plan = getPlan(planId)
   const limit = plan.id === 'basique' ? 5 : plan.id === 'standard' ? 15 : null
   const tooMany = limit !== null && memberCount > limit
@@ -25,6 +30,13 @@ export function CheckoutForm({ initialPlan, initialBilling, memberCount = 0 }: {
     if (tooMany) return setError(`Votre équipe compte ${memberCount} membres, la formule ${plan.name} en autorise ${limit}. Choisissez une formule plus large.`)
     setBusy(true)
     setError('')
+    if (PAYMENT_PROVIDER === 'manual') {
+      const created = await createManualPayment(planId, billing)
+      setBusy(false)
+      if (created.ok) setManual(created.intent)
+      else setError(created.error)
+      return
+    }
     const result = await startCheckout(planId, billing)
     if (!result.ok) {
       setError(result.error)
@@ -32,6 +44,18 @@ export function CheckoutForm({ initialPlan, initialBilling, memberCount = 0 }: {
       return
     }
     window.location.assign(result.url) // la page de paiement FedaPay prend le relais ; le retour se fait sur /abonnement/retour
+  }
+
+  if (manual) {
+    return (
+      <ManualPayment
+        intent={manual}
+        onBack={() => setManual(null)}
+        onPaid={() => {
+          void hydrate() // recharge l'abonnement : jours d'accès, facture, et réouverture si le restaurant était suspendu
+        }}
+      />
+    )
   }
 
   return (
@@ -87,9 +111,13 @@ export function CheckoutForm({ initialPlan, initialBilling, memberCount = 0 }: {
         className={cn('mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-ember to-ember-deep text-base font-semibold text-primary-foreground shadow-lg shadow-ember-deep/25 disabled:opacity-70', focusRing)}
       >
         {busy && <Loader2 className="size-5 animate-spin" aria-hidden="true" />}
-        {busy ? 'Ouverture du paiement…' : `Payer ${formatFCFA(amountDue(plan, billing))} FCFA`}
+        {busy ? 'Un instant…' : PAYMENT_PROVIDER === 'manual' ? `Payer ${formatFCFA(amountDue(plan, billing))} FCFA par Mobile Money` : `Payer ${formatFCFA(amountDue(plan, billing))} FCFA`}
       </button>
-      <p className="mt-2 text-center text-xs text-muted-foreground">Paiement sécurisé par FedaPay : MTN, Moov, Celtiis ou carte. Vous choisirez votre opérateur sur la page suivante.</p>
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        {PAYMENT_PROVIDER === 'manual'
+          ? 'Paiement par Mobile Money (MTN, Moov ou Celtiis) : vous envoyez le montant depuis votre téléphone, puis nous le vérifions.'
+          : 'Paiement sécurisé par FedaPay : MTN, Moov, Celtiis ou carte. Vous choisirez votre opérateur sur la page suivante.'}
+      </p>
     </div>
   )
 }

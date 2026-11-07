@@ -139,7 +139,7 @@ function Detail({ restaurant, onClose }: { restaurant: RestaurantRow; onClose: (
   )
 }
 
-const emptyOverview: Overview = { restaurants: 0, activeSubscriptions: 0, newThisMonth: 0, openTickets: 0, monthlyRevenue: 0, signups12: Array(12).fill(0) }
+const emptyOverview: Overview = { restaurants: 0, activeSubscriptions: 0, newThisMonth: 0, openTickets: 0, monthlyRevenue: 0, pendingPayments: 0, signups12: Array(12).fill(0) }
 
 /** Mode démonstration : les données fictives, mises au même format que les données réelles. */
 function demoData(): AdminData {
@@ -192,6 +192,7 @@ export function SuperAdminDashboard() {
   const quick: { label: string; href: string; icon: LucideIcon; extra?: string }[] = [
     { label: 'Voir tous les restaurants', href: '/superadmin/restaurants', icon: Building2 },
     { label: 'Gérer les abonnements', href: '/superadmin/abonnements', icon: CreditCard },
+    ...(DEMO_SUPERADMIN ? [] : [{ label: 'Paiements à valider', href: '/superadmin/paiements', icon: CreditCard, extra: `(${kpis.pendingPayments})` }]),
     { label: 'Tickets support ouverts', href: '/superadmin/support', icon: Headset, extra: `(${kpis.openTickets})` },
   ]
 
