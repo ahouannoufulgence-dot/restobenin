@@ -4,13 +4,14 @@ import { Phone } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { type Billing, type PlanId, getPlan } from '@/lib/plans'
 import { type AccountData, AccountStep } from './account-step'
-import { checkEmailConfirmed, resendConfirmation, signUpAccount } from '@/lib/auth'
+import { checkEmailConfirmed, resendConfirmation, signUpAccount, verifyEmailCode } from '@/lib/auth'
 import { supabaseConfigured } from '@/lib/supabase/client'
 import { completeSignup } from '@/lib/signup-complete'
 import { type PaymentMethodId, PaymentStep, paymentMethodLabels } from './payment-step'
 import { PlanStep } from './plan-step'
 import { SignupHeader } from './signup-header'
 import { SuccessStep } from './success-step'
+import { TrialStep } from './trial-step'
 import { VerifyStep } from './verify-step'
 
 export function SignupFlow({ initialPlan }: { initialPlan?: PlanId }) {
@@ -64,6 +65,7 @@ export function SignupFlow({ initialPlan }: { initialPlan?: PlanId }) {
               email={account.email}
               onEditEmail={() => goTo(1)}
               onVerified={() => goTo(3)}
+              onVerifyCode={(code) => (supabaseConfigured ? verifyEmailCode(account.email, code) : Promise.resolve(null))}
               onCheck={() => (supabaseConfigured ? checkEmailConfirmed(account.email, account.password) : Promise.resolve(null))}
               onResend={() => (supabaseConfigured ? resendConfirmation(account.email) : Promise.resolve(null))}
             />
@@ -80,7 +82,22 @@ export function SignupFlow({ initialPlan }: { initialPlan?: PlanId }) {
               }}
             />
           )}
-          {step === 4 && account && (
+          {step === 4 && account && supabaseConfigured && (
+            <TrialStep
+              restaurant={account.restaurant}
+              plan={plan}
+              billing={billing}
+              onBack={() => goTo(3)}
+              onStart={async () => {
+                // Essai gratuit : aucun paiement, la base accorde 20 jours d'accès au nouveau restaurant.
+                const failure = await completeSignup(account, planId, billing, 'Non précisé')
+                if (failure) return failure
+                goTo(5)
+                return null
+              }}
+            />
+          )}
+          {step === 4 && account && !supabaseConfigured && (
             <PaymentStep
               restaurant={account.restaurant}
               phone={account.phone}

@@ -1,3 +1,4 @@
+import { supabaseConfigured } from '@/lib/supabase/client'
 import { ArrowRight, Check, Download } from 'lucide-react'
 import Link from 'next/link'
 import type React from 'react'
@@ -46,7 +47,8 @@ export function SuccessStep({ restaurant, planName, email }: { restaurant: strin
           démarrer.
         </p>
         <p className="relative mt-3 text-sm text-muted-foreground">
-          Formule {planName} activée · Reçu envoyé à <span className="break-all text-foreground">{email}</span>
+          {supabaseConfigured ? `Formule ${planName} · essai gratuit de 20 jours` : `Formule ${planName} activée · Reçu envoyé à`}{' '}
+          {!supabaseConfigured && <span className="break-all text-foreground">{email}</span>}
         </p>
 
         <div className="relative mt-8 flex flex-col justify-center gap-3 sm:mt-10 sm:flex-row">

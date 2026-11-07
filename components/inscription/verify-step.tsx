@@ -2,18 +2,22 @@
 
 import { ArrowRight, Check, Mail, PencilLine, RotateCw } from 'lucide-react'
 import { useState } from 'react'
-import { GlassCard, ghostButton, primaryButton, secondaryButton } from './ui'
+import { EmailCodeBox } from '@/components/connexion/email-code-box'
+import { GlassCard, ghostButton, secondaryButton } from './ui'
 
 export function VerifyStep({
   email,
   onEditEmail,
   onVerified,
+  onVerifyCode,
   onCheck,
   onResend,
 }: {
   email: string
   onEditEmail: () => void
   onVerified: () => void
+  /** Vérifie le code reçu par e-mail. Renvoie un message d'erreur, ou null si le code est bon. */
+  onVerifyCode: (code: string) => Promise<string | null>
   /** Vérifie que l'e-mail est confirmé. Renvoie un message d'erreur, ou null si tout est bon. */
   onCheck: () => Promise<string | null>
   onResend: () => Promise<string | null>
@@ -57,22 +61,33 @@ export function VerifyStep({
           Vérifiez votre adresse e-mail
         </h1>
         <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">
-          Un lien de vérification a été envoyé à{' '}
-          <span className="break-all font-semibold text-foreground">{email}</span>. Cliquez sur le lien pour activer
+          Un e-mail contenant un <strong className="text-foreground">code</strong> a été envoyé à{' '}
+          <span className="break-all font-semibold text-foreground">{email}</span>. Saisissez ce code ci-dessous pour activer
           votre compte.
         </p>
+
+        <EmailCodeBox
+          className="mt-6"
+          onSubmit={async (code) => {
+            const failure = await onVerifyCode(code)
+            if (!failure) onVerified()
+            return failure
+          }}
+        />
+
+        <p className="mt-6 text-sm text-muted-foreground">Vous préférez le lien ? Cliquez dessus dans l’e-mail, puis revenez ici.</p>
 
         <p className={`mt-3 min-h-5 text-sm font-medium ${error ? 'text-destructive' : 'text-success'}`} role={error ? 'alert' : 'status'}>
           {error || (resentCount > 0 && 'Un nouvel e-mail de vérification vient d’être envoyé.')}
         </p>
 
         <div className="mt-4 flex w-full flex-col gap-3 sm:w-auto">
-          <button type="button" onClick={resend} disabled={busy !== null} className={primaryButton}>
+          <button type="button" onClick={resend} disabled={busy !== null} className={secondaryButton}>
             <RotateCw className="size-4" aria-hidden="true" />
             Renvoyer l&apos;e-mail
           </button>
           <button type="button" onClick={check} disabled={busy !== null} className={secondaryButton}>
-            {busy === 'check' ? 'Vérification…' : 'J’ai vérifié mon adresse'}
+            {busy === 'check' ? 'Vérification…' : 'J’ai cliqué sur le lien'}
             <ArrowRight className="size-4" aria-hidden="true" />
           </button>
         </div>
