@@ -61,9 +61,8 @@ export function VerifyStep({
           Vérifiez votre adresse e-mail
         </h1>
         <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">
-          Un e-mail contenant un <strong className="text-foreground">code</strong> a été envoyé à{' '}
-          <span className="break-all font-semibold text-foreground">{email}</span>. Saisissez ce code ci-dessous pour activer
-          votre compte.
+          Un e-mail vient d’être envoyé à <span className="break-all font-semibold text-foreground">{email}</span>. Saisissez le{' '}
+          <strong className="text-foreground">code</strong> qu’il contient ci-dessous pour activer votre compte.
         </p>
 
         <EmailCodeBox
@@ -75,7 +74,9 @@ export function VerifyStep({
           }}
         />
 
-        <p className="mt-6 text-sm text-muted-foreground">Vous préférez le lien ? Cliquez dessus dans l’e-mail, puis revenez ici.</p>
+        <p className="mt-6 text-sm text-muted-foreground">
+          Pas de code dans le message ? Cliquez sur le lien qu’il contient, puis revenez ici et appuyez sur « J’ai cliqué sur le lien ». Pensez à vérifier vos courriers indésirables.
+        </p>
 
         <p className={`mt-3 min-h-5 text-sm font-medium ${error ? 'text-destructive' : 'text-success'}`} role={error ? 'alert' : 'status'}>
           {error || (resentCount > 0 && 'Un nouvel e-mail de vérification vient d’être envoyé.')}
