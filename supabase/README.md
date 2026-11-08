@@ -173,6 +173,11 @@ paiements. Le paiement manuel n'en demande aucun : adapté aux premiers restaura
 montant exact (calculé par la base) et votre numéro, envoie l'argent depuis son téléphone, puis saisit le numéro de transaction
 du SMS et le numéro qui a payé. Un même numéro de transaction ne peut servir qu'une fois.
 
+**Aide à l'envoi.** Sous le numéro, « Comment envoyer avec mon téléphone ? » propose un bouton par opérateur qui ouvre le menu
+Mobile Money du téléphone (MTN `*880#`, Moov `*855#`, Celtiis `*889#`) ; sur ordinateur, le code est affiché. On n'utilise que ces
+codes d'entrée : les enchaînements avec numéro et montant ne sont pas publiés par les opérateurs et pourraient envoyer l'argent au
+mauvais endroit. Les numéros d'options des menus peuvent changer : l'aide le dit au gérant.
+
 **Votre parcours** (Super Admin) :
 1. **Paramètres > « Où les restaurants vous paient »** : saisir une première fois votre numéro MTN ou Moov, le nom du titulaire
    et une consigne. Tant que ce n'est pas fait, personne ne peut payer. Le numéro n'est écrit ni dans le code ni sur GitHub.

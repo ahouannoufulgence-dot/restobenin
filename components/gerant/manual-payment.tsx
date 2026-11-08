@@ -34,6 +34,92 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   )
 }
 
+type Operator = 'mtn' | 'moov' | 'celtiis'
+
+// Codes d'entrée officiels du menu Mobile Money de chaque opérateur au Bénin. On n'enchaîne jamais d'options, de numéro ni de
+// montant : ces enchaînements ne sont pas publiés par les opérateurs, et un décalage pourrait envoyer l'argent au mauvais endroit.
+const OPERATORS: Record<Operator, { name: string; code: string; steps: string }> = {
+  mtn: {
+    name: 'MTN MoMo',
+    code: '*880#',
+    steps: 'Choisissez « Envoi d’argent » (l’option 1 pour un numéro MTN ; pour un numéro d’un autre réseau, l’envoi vers un autre opérateur).',
+  },
+  moov: {
+    name: 'Moov Money',
+    code: '*855#',
+    steps: 'Choisissez le transfert d’argent (vers un numéro Moov ; pour un autre réseau, l’envoi vers un autre opérateur).',
+  },
+  celtiis: {
+    name: 'Celtiis Cash',
+    code: '*889#',
+    steps: 'Choisissez « Transfert » (l’option 4), puis le transfert national.',
+  },
+}
+
+const operatorOf = (label: string): Operator | null => {
+  const l = label.toLowerCase()
+  return l.includes('mtn') ? 'mtn' : l.includes('moov') ? 'moov' : l.includes('celtiis') || l.includes('c\'cash') ? 'celtiis' : null
+}
+
+/**
+ * « Comment envoyer ? » : un bouton ouvre directement le menu Mobile Money du téléphone (le code reste caché derrière le
+ * bouton). Sur ordinateur, le code est affiché pour être composé sur le téléphone.
+ */
+function SendHelp({ receiver, phone, reference }: { receiver: string; phone: string; reference: string }) {
+  const receiverOp = operatorOf(receiver)
+  const [op, setOp] = useState<Operator>(receiverOp ?? 'mtn')
+  const [mobile, setMobile] = useState(false)
+  useEffect(() => setMobile(/Android|iPhone|iPad/i.test(navigator.userAgent)), [])
+  const current = OPERATORS[op]
+  const crossNetwork = receiverOp !== null && receiverOp !== op
+
+  return (
+    <details className="mt-3 rounded-xl border border-border bg-sand/40 p-3 text-sm">
+      <summary className="cursor-pointer font-semibold focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40">Comment envoyer avec mon téléphone ?</summary>
+      <div className="mt-3">
+        <p className="text-xs text-muted-foreground">Votre téléphone est chez :</p>
+        <div role="radiogroup" aria-label="Votre opérateur" className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1">
+          {(Object.keys(OPERATORS) as Operator[]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="radio"
+              aria-checked={op === k}
+              onClick={() => setOp(k)}
+              className={cn('h-10 rounded-lg text-xs font-semibold transition-colors', op === k ? 'bg-ember text-primary-foreground' : 'text-foreground/80 hover:bg-muted/60', focusRing)}
+            >
+              {OPERATORS[k].name}
+            </button>
+          ))}
+        </div>
+
+        {mobile ? (
+          <a href={`tel:${current.code.replace('#', '%23')}`} className={cn(primary, 'mt-3 no-underline')}>
+            Ouvrir {current.name}
+          </a>
+        ) : (
+          <p className="mt-3 rounded-lg bg-card p-3 text-center text-sm">
+            Sur votre téléphone, composez <span className="font-mono font-semibold">{current.code}</span>
+          </p>
+        )}
+        {mobile && <p className="mt-1.5 text-center text-xs text-muted-foreground">Le bouton ne s’ouvre pas ? Composez <span className="font-mono">{current.code}</span> sur votre téléphone.</p>}
+
+        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-foreground/90">
+          <li>{current.steps}</li>
+          <li>
+            Saisissez le numéro <span className="font-mono font-semibold">{phone}</span> et le montant exact, puis indiquez <span className="font-mono font-semibold">{reference}</span> comme référence si le menu le demande.
+          </li>
+          <li>Validez avec votre code secret. Vous recevrez un SMS avec le numéro de transaction : revenez le saisir ci-dessous.</li>
+        </ol>
+        {crossNetwork && (
+          <p className="mt-2 text-xs text-muted-foreground">Le numéro de RestoBen est chez {OPERATORS[receiverOp].name} : un envoi vers un autre réseau demande une étape de plus et peut avoir des frais. Si vous le pouvez, payez depuis un numéro {OPERATORS[receiverOp].name}.</p>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">Les numéros d’options peuvent changer : suivez les choix affichés par votre téléphone. RestoBen ne vous demande jamais votre code secret en dehors de votre téléphone.</p>
+      </div>
+    </details>
+  )
+}
+
 /**
  * Paiement manuel par Mobile Money : 1) le gérant envoie le montant au numéro de RestoBen, 2) il saisit le numéro de
  * transaction reçu par SMS, 3) RestoBen vérifie et valide. Cet écran suit ensuite la validation tout seul.
@@ -136,6 +222,7 @@ export function ManualPayment({ intent, onBack, onPaid }: { intent: ManualIntent
               Si votre application le permet, indiquez le code <span className="font-mono font-semibold text-foreground">{intent.code}</span> en motif.{info.note ? ` ${info.note}` : ''}
             </p>
           </div>
+          <SendHelp receiver={info.operator} phone={info.phone} reference={intent.code} />
         </li>
 
         <li className="rounded-xl border border-border bg-card p-4">
