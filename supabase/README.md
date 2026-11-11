@@ -179,8 +179,10 @@ codes d'entrée : les enchaînements avec numéro et montant ne sont pas publié
 mauvais endroit. Les numéros d'options des menus peuvent changer : l'aide le dit au gérant.
 
 **Votre parcours** (Super Admin) :
-1. **Paramètres > « Où les restaurants vous paient »** : saisir une première fois votre numéro MTN ou Moov, le nom du titulaire
-   et une consigne. Tant que ce n'est pas fait, personne ne peut payer. Le numéro n'est écrit ni dans le code ni sur GitHub.
+1. **Paramètres > « Où les restaurants vous paient »** : saisir un numéro par réseau (MTN, Celtiis, Moov ; au moins un), le nom
+   du titulaire et une consigne. Chaque gérant choisit son réseau et voit le numéro correspondant : envoyer vers le même réseau est
+   plus simple qu'entre deux réseaux. Si un gérant est sur un réseau sans numéro, il voit le numéro principal avec un
+   avertissement. Tant qu'aucun numéro n'est saisi, personne ne peut payer. Les numéros ne sont écrits ni dans le code ni sur GitHub.
 2. **Paiements > « Paiements à valider »** (compteur sur le tableau de bord) : pour chaque demande, vérifiez dans votre
    application Mobile Money que le numéro de transaction figure dans vos messages, puis cliquez sur **Valider** en saisissant le
    montant réellement reçu (la base refuse un montant différent). L'accès est prolongé tout de suite ; un restaurant suspendu

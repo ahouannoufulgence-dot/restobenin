@@ -23,6 +23,7 @@ import {
   setRestaurantStatus,
   updateTicketStatus,
   type AuditRow,
+  type OperatorKey,
   type PaymentInfo,
   type PaymentRow,
   type PendingPayment,
@@ -542,29 +543,38 @@ function UsersSection() {
   )
 }
 
+const NUMBER_FIELDS: { key: OperatorKey; label: string }[] = [
+  { key: 'mtn', label: 'MTN MoMo' },
+  { key: 'celtiis', label: 'Celtiis Cash' },
+  { key: 'moov', label: 'Moov Money' },
+]
+
 function PaymentInfoPanel() {
   const { data, error } = useLoad(loadPaymentInfo)
-  const [form, setForm] = useState<PaymentInfo>({ operator: 'MTN MoMo', phone: '', holder: '', note: '' })
+  const [form, setForm] = useState({ mtn: '', celtiis: '', moov: '', holder: '', note: '' })
   const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
     if (data && !loaded) {
-      setForm(data)
+      const phone = (k: OperatorKey) => data.numbers.find((n) => n.operator === k)?.phone ?? ''
+      setForm({ mtn: phone('mtn'), celtiis: phone('celtiis'), moov: phone('moov'), holder: data.holder, note: data.note })
       setLoaded(true)
     }
   }, [data, loaded])
 
-  const set = (key: keyof PaymentInfo) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const field = 'mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-ember focus:ring-3 focus:ring-ember/20'
 
   async function save() {
-    setBusy(true)
     setMessage(null)
+    const numbers = NUMBER_FIELDS.flatMap(({ key }) => (form[key].trim() ? [{ operator: key, phone: form[key].trim() }] : []))
+    if (numbers.length === 0) return setMessage({ ok: false, text: 'Saisissez au moins un numéro.' })
+    setBusy(true)
     try {
-      await savePaymentInfo(form)
-      setMessage({ ok: true, text: 'Coordonnées enregistrées : les gérants les voient désormais au moment de payer.' })
+      await savePaymentInfo({ numbers, holder: form.holder, note: form.note })
+      setMessage({ ok: true, text: 'Enregistré : chaque gérant voit le numéro de son réseau au moment de payer.' })
     } catch (e) {
       setMessage({ ok: false, text: friendlyError(e instanceof Error ? e.message : String(e)) })
     }
@@ -575,20 +585,18 @@ function PaymentInfoPanel() {
     <section aria-label="Coordonnées de paiement" className={cn(card, 'overflow-hidden')}>
       <div className="border-b border-border px-5 py-4">
         <h2 className="font-serif text-xl font-semibold">Où les restaurants vous paient</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Numéro Mobile Money affiché aux gérants quand ils paient leur abonnement. Tant qu’il n’est pas saisi, personne ne peut payer.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Un numéro par réseau : le gérant paie sur celui de son propre réseau, ce qui est plus simple pour lui. Laissez vide un réseau dont vous n’avez pas de numéro. Il en faut au moins un.</p>
       </div>
       <div className="grid gap-4 p-5">
         {error && <p role="alert" className="rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">Impossible de charger : {error}</p>}
         {!data && !error && <p role="status" className="text-sm text-muted-foreground">Chargement…</p>}
         {data === null && !error && <p role="status" className="rounded-xl bg-gold/15 p-3 text-sm font-medium text-[#6b4510]">Aucun numéro saisi pour le moment : les gérants ne peuvent pas encore payer.</p>}
-        <div>
-          <label htmlFor="pi-operator" className="block text-sm font-medium">Service (MTN MoMo, Moov Money, Celtiis Cash)</label>
-          <input id="pi-operator" value={form.operator} onChange={set('operator')} maxLength={40} className={field} />
-        </div>
-        <div>
-          <label htmlFor="pi-phone" className="block text-sm font-medium">Numéro qui reçoit les paiements</label>
-          <input id="pi-phone" value={form.phone} onChange={set('phone')} inputMode="tel" maxLength={20} placeholder="+229 01 00 00 00 00" className={field} />
-        </div>
+        {NUMBER_FIELDS.map(({ key, label }) => (
+          <div key={key}>
+            <label htmlFor={`pi-${key}`} className="block text-sm font-medium">Numéro {label}</label>
+            <input id={`pi-${key}`} value={form[key]} onChange={set(key)} inputMode="tel" maxLength={20} placeholder="01 00 00 00 00" className={field} />
+          </div>
+        ))}
         <div>
           <label htmlFor="pi-holder" className="block text-sm font-medium">Nom du titulaire <span className="font-normal text-muted-foreground">(affiché pour que le gérant vérifie avant d’envoyer)</span></label>
           <input id="pi-holder" value={form.holder} onChange={set('holder')} maxLength={80} className={field} />
