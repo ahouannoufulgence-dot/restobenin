@@ -65,40 +65,21 @@ const operatorOf = (label: string): Operator | null => {
  * « Comment envoyer ? » : un bouton ouvre directement le menu Mobile Money du téléphone (le code reste caché derrière le
  * bouton). Sur ordinateur, le code est affiché pour être composé sur le téléphone.
  */
-function SendHelp({ receiver, phone, reference }: { receiver: string; phone: string; reference: string }) {
-  const receiverOp = operatorOf(receiver)
-  const [op, setOp] = useState<Operator>(receiverOp ?? 'mtn')
+function SendHelp({ op, phone, reference, crossFrom }: { op: Operator; phone: string; reference: string; crossFrom: Operator | null }) {
   const [mobile, setMobile] = useState(false)
   useEffect(() => setMobile(/Android|iPhone|iPad/i.test(navigator.userAgent)), [])
   const current = OPERATORS[op]
-  const crossNetwork = receiverOp !== null && receiverOp !== op
 
   return (
     <details className="mt-3 rounded-xl border border-border bg-sand/40 p-3 text-sm">
       <summary className="cursor-pointer font-semibold focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/40">Comment envoyer avec mon téléphone ?</summary>
       <div className="mt-3">
-        <p className="text-xs text-muted-foreground">Votre téléphone est chez :</p>
-        <div role="radiogroup" aria-label="Votre opérateur" className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl border border-border bg-card p-1">
-          {(Object.keys(OPERATORS) as Operator[]).map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="radio"
-              aria-checked={op === k}
-              onClick={() => setOp(k)}
-              className={cn('h-10 rounded-lg text-xs font-semibold transition-colors', op === k ? 'bg-ember text-primary-foreground' : 'text-foreground/80 hover:bg-muted/60', focusRing)}
-            >
-              {OPERATORS[k].name}
-            </button>
-          ))}
-        </div>
-
         {mobile ? (
-          <a href={`tel:${current.code.replace('#', '%23')}`} className={cn(primary, 'mt-3 no-underline')}>
+          <a href={`tel:${current.code.replace('#', '%23')}`} className={cn(primary, 'no-underline')}>
             Ouvrir {current.name}
           </a>
         ) : (
-          <p className="mt-3 rounded-lg bg-card p-3 text-center text-sm">
+          <p className="rounded-lg bg-card p-3 text-center text-sm">
             Sur votre téléphone, composez <span className="font-mono font-semibold">{current.code}</span>
           </p>
         )}
@@ -111,9 +92,7 @@ function SendHelp({ receiver, phone, reference }: { receiver: string; phone: str
           </li>
           <li>Validez avec votre code secret. Vous recevrez un SMS avec le numéro de transaction : revenez le saisir ci-dessous.</li>
         </ol>
-        {crossNetwork && (
-          <p className="mt-2 text-xs text-muted-foreground">Le numéro de RestoBen est chez {OPERATORS[receiverOp].name} : un envoi vers un autre réseau demande une étape de plus et peut avoir des frais. Si vous le pouvez, payez depuis un numéro {OPERATORS[receiverOp].name}.</p>
-        )}
+        {crossFrom && <p className="mt-2 text-xs text-muted-foreground">Ce numéro n’est pas chez {OPERATORS[crossFrom].name} : l’envoi passe par un autre réseau, ce qui demande une étape de plus et peut avoir des frais.</p>}
         <p className="mt-2 text-xs text-muted-foreground">Les numéros d’options peuvent changer : suivez les choix affichés par votre téléphone. RestoBen ne vous demande jamais votre code secret en dehors de votre téléphone.</p>
       </div>
     </details>
@@ -126,6 +105,11 @@ function SendHelp({ receiver, phone, reference }: { receiver: string; phone: str
  */
 export function ManualPayment({ intent, onBack, onPaid }: { intent: ManualIntent; onBack: () => void; onPaid: () => void }) {
   const { instructions: info } = intent
+  // Un numéro de réception par opérateur : le gérant paie sur celui de son propre réseau (envoi plus simple, sans frais d'interopérabilité).
+  const numbers = info.numbers?.length ? info.numbers : info.phone ? [{ operator: operatorOf(info.operator) ?? ('mtn' as Operator), phone: info.phone }] : []
+  const [op, setOp] = useState<Operator>(() => (numbers.some((n) => n.operator === 'mtn') ? 'mtn' : (numbers[0]?.operator ?? 'mtn')))
+  const match = numbers.find((n) => n.operator === op)
+  const target = match ?? numbers[0]
   const [ref, setRef] = useState('')
   const [phone, setPhone] = useState('')
   const [busy, setBusy] = useState(false)
@@ -202,6 +186,14 @@ export function ManualPayment({ intent, onBack, onPaid }: { intent: ManualIntent
       <ol className="grid gap-3 text-sm">
         <li className="rounded-xl border border-border bg-card p-4">
           <p className="font-semibold">1. Envoyez le montant par Mobile Money</p>
+          <p className="mt-3 text-xs text-muted-foreground">Votre téléphone est chez :</p>
+          <div role="radiogroup" aria-label="Votre opérateur" className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl border border-border bg-background p-1">
+            {(Object.keys(OPERATORS) as Operator[]).map((k) => (
+              <button key={k} type="button" role="radio" aria-checked={op === k} onClick={() => setOp(k)} className={cn('h-10 rounded-lg text-xs font-semibold transition-colors', op === k ? 'bg-ember text-primary-foreground' : 'text-foreground/80 hover:bg-muted/60', focusRing)}>
+                {OPERATORS[k].name}
+              </button>
+            ))}
+          </div>
           <div className="mt-3 grid gap-2.5">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -210,19 +202,21 @@ export function ManualPayment({ intent, onBack, onPaid }: { intent: ManualIntent
               </div>
               <CopyButton value={String(intent.amount)} label="le montant" />
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs text-muted-foreground">{info.operator ? `Numéro ${info.operator}` : 'Numéro Mobile Money'}</p>
-                <p className="font-mono text-lg font-semibold">{info.phone}</p>
-                {info.holder && <p className="text-xs text-muted-foreground">Au nom de {info.holder}</p>}
+            {target && (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Envoyez à ce numéro {OPERATORS[target.operator].name}</p>
+                  <p className="font-mono text-lg font-semibold">{target.phone}</p>
+                  {info.holder && <p className="text-xs text-muted-foreground">Au nom de {info.holder}</p>}
+                </div>
+                <CopyButton value={target.phone.replace(/\s/g, '')} label="le numéro" />
               </div>
-              <CopyButton value={info.phone} label="le numéro" />
-            </div>
+            )}
             <p className="text-xs text-muted-foreground">
               Si votre application le permet, indiquez le code <span className="font-mono font-semibold text-foreground">{intent.code}</span> en motif.{info.note ? ` ${info.note}` : ''}
             </p>
           </div>
-          <SendHelp receiver={info.operator} phone={info.phone} reference={intent.code} />
+          {target && <SendHelp op={op} phone={target.phone} reference={intent.code} crossFrom={match ? null : op} />}
         </li>
 
         <li className="rounded-xl border border-border bg-card p-4">

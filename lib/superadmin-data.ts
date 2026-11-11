@@ -255,16 +255,23 @@ export async function rejectManualPayment(id: string, reason: string): Promise<v
   if (error) throw new Error(error.message)
 }
 
-/** Vos coordonnées de réception, telles que les voient les gérants (null tant qu'elles ne sont pas saisies). */
-export type PaymentInfo = { operator: string; phone: string; holder: string; note: string }
+/** Vos coordonnées de réception, telles que les voient les gérants : un numéro par opérateur, un titulaire et une consigne. */
+export type OperatorKey = 'mtn' | 'moov' | 'celtiis'
+export type PaymentInfo = { numbers: { operator: OperatorKey; phone: string }[]; holder: string; note: string }
 
+const operatorFromLabel = (label: string): OperatorKey => (/moov/i.test(label) ? 'moov' : /celtiis/i.test(label) ? 'celtiis' : 'mtn')
+
+/** Renvoie null tant qu'aucun numéro n'est saisi. */
 export async function loadPaymentInfo(): Promise<PaymentInfo | null> {
   const { data, error } = await getSupabase().rpc('payment_instructions')
   if (error) throw new Error(error.message)
-  return (data as PaymentInfo | null) ?? null
+  if (!data) return null
+  const d = data as { numbers?: { operator: OperatorKey; phone: string }[]; operator?: string; phone?: string; holder?: string; note?: string }
+  const numbers = d.numbers?.length ? d.numbers : d.phone ? [{ operator: operatorFromLabel(d.operator ?? ''), phone: d.phone }] : []
+  return { numbers, holder: d.holder ?? '', note: d.note ?? '' }
 }
 
 export async function savePaymentInfo(info: PaymentInfo): Promise<void> {
-  const { error } = await getSupabase().rpc('admin_set_payment_instructions', { p_operator: info.operator, p_phone: info.phone, p_holder: info.holder, p_note: info.note })
+  const { error } = await getSupabase().rpc('admin_set_payment_numbers', { p_numbers: info.numbers, p_holder: info.holder, p_note: info.note })
   if (error) throw new Error(error.message)
 }

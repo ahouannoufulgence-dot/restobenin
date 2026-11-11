@@ -2,7 +2,9 @@ import type { Billing, PlanId } from './plans'
 import { getSupabase } from './supabase/client'
 import { friendlyError, getRemote } from './supabase/runtime'
 
-export type PaymentInstructions = { operator: string; phone: string; holder: string; note: string }
+export type OperatorKey = 'mtn' | 'moov' | 'celtiis'
+/** `numbers` : un numéro de réception par opérateur. `operator` et `phone` (numéro principal) servent aux anciennes versions. */
+export type PaymentInstructions = { operator: string; phone: string; holder: string; note: string; numbers?: { operator: OperatorKey; phone: string }[] }
 export type ManualIntent = { paymentId: string; amount: number; code: string; description: string; instructions: PaymentInstructions }
 export type PaymentState = { status: 'en_attente' | 'payee' | 'echec'; submitted: boolean; note: string | null }
 
