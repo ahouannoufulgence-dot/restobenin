@@ -17,7 +17,8 @@ export type ClientDish = {
 
 export const restaurant = { name: 'Le Délice', city: 'Cotonou' }
 
-export const SERVICE_FEE = 500
+/** Frais de service des commandes par QR code : supprimés (0). Le total est le prix des plats. */
+export const SERVICE_FEE = 0
 
 export const categories: { id: Category | 'tous'; label: string }[] = [
   { id: 'tous', label: 'Tous' },
