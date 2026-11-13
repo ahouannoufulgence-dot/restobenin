@@ -66,10 +66,12 @@ export function CartSummary({ error, serviceFee = SERVICE_FEE, dishes, cart, onS
           <dt className="text-muted-foreground">Sous-total</dt>
           <dd className="font-medium tabular-nums">{fcfa(subtotal)}</dd>
         </div>
-        <div className="flex justify-between">
-          <dt className="text-muted-foreground">Frais de service</dt>
-          <dd className="font-medium tabular-nums">{fcfa(serviceFee)}</dd>
-        </div>
+        {serviceFee > 0 && (
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Frais de service</dt>
+            <dd className="font-medium tabular-nums">{fcfa(serviceFee)}</dd>
+          </div>
+        )}
         <div className="mt-2 flex items-baseline justify-between border-t border-border pt-3">
           <dt className="font-serif text-xl font-semibold">Total</dt>
           <dd className="font-serif text-2xl font-semibold tabular-nums text-ember-deep">{fcfa(subtotal + serviceFee)}</dd>

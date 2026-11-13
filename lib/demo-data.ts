@@ -72,7 +72,7 @@ export function demoOrdersForDay(dayStart: number): StoreOrder[] {
     }
     const lines = [...map.values()]
     const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0)
-    const serviceFee = 500
+    const serviceFee = 0 // plus de frais de service
     const total = subtotal + serviceFee
     const method = methodFor(rand)
     const received = method === 'especes' ? Math.ceil(total / 1000) * 1000 : total
