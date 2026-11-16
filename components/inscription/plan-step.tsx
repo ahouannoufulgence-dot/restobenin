@@ -1,7 +1,7 @@
 'use client'
 
 import { ArrowLeft, CircleCheck } from 'lucide-react'
-import { Ornament } from '@/components/restoben/trusted-by'
+import { Ornament } from '@/components/restoben/ornament'
 import { type Billing, type PlanId, amountDue, formatFCFA, monthlyPrice, plans } from '@/lib/plans'
 import { cn } from '@/lib/utils'
 import { ghostButton } from './ui'

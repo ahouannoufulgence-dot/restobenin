@@ -6,14 +6,18 @@ export function Logo({
   hideTaglineOnMobile = false,
   href = '#',
   className,
+  tagline = 'La gestion élevée au goût près',
+  label = 'RestoBen, accueil',
 }: {
   withTagline?: boolean
   hideTaglineOnMobile?: boolean
   href?: string
   className?: string
+  tagline?: string
+  label?: string
 }) {
   return (
-    <a href={href} className={cn('flex items-center gap-2.5', className)} aria-label="RestoBen, accueil">
+    <a href={href} className={cn('flex items-center gap-2.5', className)} aria-label={label}>
       <Flame className="size-9 shrink-0 fill-ember/30 text-ember" strokeWidth={1.75} aria-hidden="true" />
       <span className="flex flex-col leading-none">
         <span className="font-serif text-3xl font-semibold tracking-tight text-cream">
@@ -21,7 +25,7 @@ export function Logo({
         </span>
         {withTagline && (
           <span className={cn('mt-1 whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.14em] text-cream/70', hideTaglineOnMobile && 'max-sm:hidden')}>
-            La gestion élevée au goût près
+            {tagline}
           </span>
         )}
       </span>
