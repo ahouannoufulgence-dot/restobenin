@@ -1,11 +1,10 @@
 import { Lock, Mail, MapPin, Phone } from 'lucide-react'
+import { fmt } from '@/lib/i18n/config'
+import { getMessages } from '@/lib/i18n/server'
 import { Logo } from './logo'
 
-const columns = [
-  { title: 'Solutions', links: ['Pour les restaurants', 'Pour les chaînes', 'Pour les tables fines'] },
-  { title: 'Ressources', id: 'ressources', links: ['Centre d’aide', 'Blog & Conseils', 'Tutoriels'] },
-  { title: 'L’entreprise', id: 'a-propos', links: ['À propos', 'Carrières', 'Nous contacter'] },
-]
+// Les titres et liens viennent du dictionnaire, dans le même ordre ; seuls les ancres restent ici.
+const columnIds = [undefined, 'ressources', 'a-propos']
 
 const socials = [
   {
@@ -26,15 +25,14 @@ const socials = [
   },
 ]
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const { footer, logo } = await getMessages()
   return (
     <footer id="contact" className="bg-terracotta text-cream">
       <div className="mx-auto grid max-w-7xl gap-12 px-6 py-16 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1.7fr] lg:px-10">
         <div>
-          <Logo withTagline={false} href="/" />
-          <p className="mt-4 max-w-xs text-sm leading-relaxed text-cream/80">
-            RestoBen — L&apos;excellence opérationnelle pour les restaurants béninois.
-          </p>
+          <Logo withTagline={false} href="/" label={logo.label} />
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-cream/80">{footer.tagline}</p>
           <ul className="mt-6 flex gap-3">
             {socials.map((s) => (
               <li key={s.label}>
@@ -52,8 +50,8 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        {columns.map((col) => (
-          <nav key={col.title} id={col.id} aria-label={col.title} className="scroll-mt-10">
+        {footer.columns.map((col, i) => (
+          <nav key={col.title} id={columnIds[i]} aria-label={col.title} className="scroll-mt-10">
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-cream">{col.title}</h2>
             <ul className="mt-4 flex flex-col gap-2.5">
               {col.links.map((link) => (
@@ -68,11 +66,11 @@ export function SiteFooter() {
         ))}
 
         <div className="lg:border-l lg:border-cream/20 lg:pl-10">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-cream">Contact</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-cream">{footer.contact}</h2>
           <address className="mt-4 flex flex-col gap-3 text-sm not-italic text-cream/80">
             <span className="flex items-center gap-2.5">
               <MapPin className="size-4 shrink-0 text-gold" aria-hidden="true" />
-              Cotonou, Bénin
+              {footer.address}
             </span>
             <a href="tel:+2290144767018" className="flex items-center gap-2.5 hover:text-gold">
               <Phone className="size-4 shrink-0 text-gold" aria-hidden="true" />
@@ -88,11 +86,11 @@ export function SiteFooter() {
 
       <div className="border-t border-cream/15">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-5 text-xs text-cream/70 sm:flex-row sm:items-center sm:justify-between lg:px-10">
-          <p>© {new Date().getFullYear()} RestoBen · Yanvar Academy. Tous droits réservés. Fait avec passion pour le Bénin.</p>
+          <p>{fmt(footer.rights, { year: new Date().getFullYear() })}</p>
           <div className="flex gap-6">
-            <a href="/mentions-legales" className="hover:text-gold">Mentions légales</a>
-            <a href="/politique-de-confidentialite" className="hover:text-gold">Politique de confidentialité</a>
-            <a href="/conditions-utilisation" className="hover:text-gold">Conditions d’utilisation</a>
+            <a href="/mentions-legales" className="hover:text-gold">{footer.legal.notice}</a>
+            <a href="/politique-de-confidentialite" className="hover:text-gold">{footer.legal.privacy}</a>
+            <a href="/conditions-utilisation" className="hover:text-gold">{footer.legal.terms}</a>
             {/* Accès discret à l'espace Super Admin (non référencé). */}
             <a
               href="/superadmin/connexion"
@@ -100,7 +98,7 @@ export function SiteFooter() {
               className="inline-flex items-center opacity-30 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
             >
               <Lock className="size-3.5" aria-hidden="true" />
-              <span className="sr-only">Administration</span>
+              <span className="sr-only">{footer.admin}</span>
             </a>
           </div>
         </div>

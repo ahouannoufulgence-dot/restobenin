@@ -1,4 +1,6 @@
 import { Fragment } from 'react'
+import { getMessages } from '@/lib/i18n/server'
+import { Ornament } from './ornament'
 
 const partners = [
   { name: 'Chez Amina', city: 'Cotonou' },
@@ -8,11 +10,8 @@ const partners = [
   { name: 'Poisson d’Or' },
 ]
 
-export function Ornament() {
-  return <span className="inline-block size-1.5 rotate-45 bg-gold" aria-hidden="true" />
-}
-
-export function TrustedBy() {
+export async function TrustedBy() {
+  const { trust } = await getMessages()
   return (
     <section className="bg-cream py-14" aria-labelledby="trust-title">
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
@@ -20,7 +19,7 @@ export function TrustedBy() {
           <span className="h-px flex-1 bg-gradient-to-r from-transparent to-gold/60" aria-hidden="true" />
           <Ornament />
           <h2 id="trust-title" className="font-serif text-xl font-medium tracking-[0.2em] text-foreground">
-            Ils nous font confiance
+            {trust.title}
           </h2>
           <Ornament />
           <span className="h-px flex-1 bg-gradient-to-l from-transparent to-gold/60" aria-hidden="true" />
