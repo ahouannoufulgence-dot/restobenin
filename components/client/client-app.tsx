@@ -179,6 +179,8 @@ export function ClientApp({ table, slug, needsQr = false }: { table: string; slu
           <DishScreen
             key={dish.id}
             dish={dish}
+            dishes={dishes}
+            onSelect={(id) => setSelectedId(id)}
             initialQty={cart[dish.id] ?? 1}
             onBack={() => go('menu')}
             onAdd={(qty) => {

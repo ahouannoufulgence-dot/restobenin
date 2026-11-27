@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ChevronRight, Heart, ShoppingBag, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ClientDish } from '@/lib/client-data'
@@ -7,22 +7,57 @@ import { DishImage, QtyStepper, Rating, greenAction, roundButton } from './ui'
 
 export function DishScreen({
   dish,
+  dishes,
+  onSelect,
   initialQty,
   onBack,
   onAdd,
 }: {
   dish: ClientDish
+  /** Tous les plats affichés dans le menu : la fiche permet de passer de l'un à l'autre. */
+  dishes: ClientDish[]
+  onSelect: (id: string) => void
   initialQty: number
   onBack: () => void
   onAdd: (qty: number) => void
 }) {
   const [qty, setQty] = useState(Math.max(1, initialQty))
   const [favorite, setFavorite] = useState(false)
+  const rail = useRef<HTMLDivElement>(null)
+  const index = Math.max(0, dishes.findIndex((d) => d.id === dish.id))
+
+  // Quand on change de plat, la rangée revient sur la carte affichée (et la quantité repart de celle du panier).
+  useEffect(() => {
+    const el = rail.current?.children[index] as HTMLElement | undefined
+    el?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' as ScrollBehavior })
+  }, [index])
 
   return (
     <div className="pb-28 lg:mx-auto lg:grid lg:max-w-5xl lg:grid-cols-2 lg:items-start lg:gap-12 lg:px-0 lg:pb-12 lg:pt-10">
       <div className="relative lg:sticky lg:top-24 lg:overflow-hidden lg:rounded-3xl">
-        <DishImage dish={dish} sizes="(min-width: 448px) 448px, 100vw" className="h-72 w-full md:h-96 lg:h-[32rem]" />
+        {/* Rangée des plats : on glisse de gauche à droite pour passer au plat suivant. */}
+        <div
+          ref={rail}
+          role="list"
+          aria-label="Parcourir les plats"
+          className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onScroll={(e) => {
+            const el = e.currentTarget
+            const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth))
+            if (dishes[i] && dishes[i].id !== dish.id) onSelect(dishes[i].id)
+          }}
+        >
+          {dishes.map((d) => (
+            <div key={d.id} role="listitem" className="w-full shrink-0 snap-center">
+              <DishImage dish={d} sizes="(min-width: 448px) 448px, 100vw" className="h-72 w-full md:h-96 lg:h-[32rem]" />
+            </div>
+          ))}
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5" aria-hidden="true">
+          {dishes.map((d, i) => (
+            <span key={d.id} className={cn('h-1.5 rounded-full bg-white/80 transition-all', i === index ? 'w-5' : 'w-1.5 opacity-60')} />
+          ))}
+        </div>
         <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
           <button type="button" onClick={onBack} className={roundButton} aria-label="Retour au menu">
             <ArrowLeft className="size-5" aria-hidden="true" />
