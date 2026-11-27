@@ -74,7 +74,8 @@ export function MenuScreen({
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-4 py-4 scroll-px-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 lg:px-0 lg:scroll-px-0 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
       >
         {dishes.map((dish) => {
-          const qty = cart[dish.id] ?? 0
+          // Dans la liste, le compteur d'un plat additionne toutes ses tailles.
+          const qty = Object.entries(cart).reduce((sum, [key, q]) => (key.split('|')[0] === dish.id ? sum + q : sum), 0)
           return (
             <li
               key={dish.id}
@@ -93,7 +94,7 @@ export function MenuScreen({
                 <span className="min-w-0 p-4 pb-2">
                   <span className="block truncate font-semibold text-lg">{dish.name}</span>
                   <span className={cn('mt-0.5 block font-semibold tabular-nums', dish.available ? 'text-ember-deep' : 'text-muted-foreground')}>
-                    {fcfa(dish.price)}
+                    {dish.variants && dish.variants.length > 0 ? `à partir de ${fcfa(Math.min(...dish.variants.filter((v) => v.available).map((v) => v.price)))}` : fcfa(dish.price)}
                   </span>
                   <span className="mt-1 block">
                     {dish.available ? (
@@ -110,8 +111,8 @@ export function MenuScreen({
                   ) : (
                     <button
                       type="button"
-                      onClick={() => onSetQty(dish.id, 1)}
-                      aria-label={`Ajouter ${dish.name} au panier`}
+                      onClick={() => (dish.variants && dish.variants.length > 0 ? onOpen(dish.id) : onSetQty(dish.id, 1))}
+                      aria-label={dish.variants && dish.variants.length > 0 ? `Choisir la taille de ${dish.name}` : `Ajouter ${dish.name} au panier`}
                       className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-success text-primary-foreground shadow-md shadow-success/25 transition-colors hover:bg-success/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-success/40"
                     >
                       <Plus className="size-5" aria-hidden="true" />

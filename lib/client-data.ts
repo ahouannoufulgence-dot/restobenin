@@ -2,6 +2,9 @@ export type Category = 'plats' | 'boissons' | 'desserts'
 
 export type Review = { author: string; date: string; rating: number; text: string }
 
+/** Une taille du plat, avec son prix (le client en choisit une). */
+export type ClientVariant = { id: string; name: string; price: number; available: boolean }
+
 export type ClientDish = {
   id: string
   name: string
@@ -13,6 +16,23 @@ export type ClientDish = {
   reviewCount: number
   available: boolean
   reviews: Review[]
+  /** Tailles (vide si le plat n'en a pas). Le prix du plat est alors celui de la première taille. */
+  variants?: ClientVariant[]
+}
+
+/** Clé du panier : le plat seul, ou le plat et sa taille (« id|id-taille »). */
+export const cartKey = (dishId: string, variantId?: string) => (variantId ? `${dishId}|${variantId}` : dishId)
+/** Retrouve le plat et la taille à partir d'une clé du panier. */
+export const parseCartKey = (key: string) => {
+  const [dishId, variantId] = key.split('|')
+  return { dishId, variantId: variantId || undefined }
+}
+/** Prix d'une ligne : celui de la taille choisie, sinon celui du plat. */
+export const linePrice = (dish: ClientDish, variantId?: string) => (variantId ? (dish.variants?.find((v) => v.id === variantId)?.price ?? dish.price) : dish.price)
+/** Nom affiché d'une ligne : « Burger – Grand » pour une taille. */
+export const lineName = (dish: ClientDish, variantId?: string) => {
+  const v = variantId ? dish.variants?.find((x) => x.id === variantId) : undefined
+  return v ? `${dish.name} – ${v.name}` : dish.name
 }
 
 export const restaurant = { name: 'Le Délice', city: 'Cotonou' }
