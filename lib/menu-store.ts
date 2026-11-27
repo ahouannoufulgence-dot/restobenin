@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import { catalog, type Category, type ClientDish } from './client-data'
 import { api, publicUrl, uploadDataUrl } from './supabase/api'
+import { getSupabase } from './supabase/client'
 import { background, getRemote, onRemoteReset } from './supabase/runtime'
 
 /**
@@ -12,6 +13,9 @@ import { background, getRemote, onRemoteReset } from './supabase/runtime'
  * données : le reste de l'application ne change pas.
  */
 
+/** Une taille d'un plat (petit, grand…) avec son prix. Un plat sans taille utilise son prix de base. */
+export type MenuVariant = { id: string; name: string; price: number; available: boolean }
+
 export type MenuDish = {
   id: string
   name: string
@@ -20,6 +24,8 @@ export type MenuDish = {
   category: Category
   image?: string
   available: boolean
+  /** Tailles du plat, dans l'ordre d'affichage (vide si le plat n'en a pas). */
+  variants?: MenuVariant[]
 }
 
 const KEY = 'restoben:menu:v1'
@@ -137,6 +143,36 @@ export function useClientDishes(): ClientDish[] {
   )
 }
 
+/**
+ * Enregistre les tailles d'un plat : ajoute les nouvelles, met à jour les modifiées, retire celles qui ont disparu.
+ * Un plat sans taille n'a aucune ligne. La base refuse une taille qui ne correspond pas au plat (contrôle dans la base).
+ */
+async function syncVariants(restaurantId: string, dish: MenuDish, existed: boolean) {
+  const wanted = dish.variants ?? []
+  if (!existed && wanted.length === 0) return
+  const { data, error } = await getSupabase().from('menu_variants').select('id').eq('menu_item_id', dish.id)
+  if (error) throw new Error(error.message)
+  const current = new Set(((data ?? []) as { id: string }[]).map((r) => r.id))
+  const keep = new Set(wanted.filter((v) => current.has(v.id)).map((v) => v.id))
+
+  for (const id of current) {
+    if (!keep.has(id)) {
+      const removed = await api.deleteVariant(id)
+      if (removed.error) throw new Error(removed.error.message)
+    }
+  }
+  for (const [position, v] of wanted.entries()) {
+    const row = { name: v.name, price_fcfa: v.price, position, available: v.available }
+    if (current.has(v.id)) {
+      const updated = await api.updateVariant(v.id, row)
+      if (updated.error) throw new Error(updated.error.message)
+    } else {
+      const inserted = await api.insertVariant({ id: v.id, restaurant_id: restaurantId, menu_item_id: dish.id, ...row })
+      if (inserted.error) throw new Error(inserted.error.message)
+    }
+  }
+}
+
 export const menuActions = {
   toggle(id: string) {
     const list = getSnapshot()
@@ -171,7 +207,10 @@ export const menuActions = {
         available: dish.available,
         ...(imagePath !== undefined ? { image_path: imagePath } : {}),
       }
-      return exists ? api.updateDish(dish.id, row) : api.insertDish({ id: dish.id, restaurant_id: remote.restaurantId, position: list.length, ...row })
+      const saved = exists ? await api.updateDish(dish.id, row) : await api.insertDish({ id: dish.id, restaurant_id: remote.restaurantId, position: list.length, ...row })
+      if (saved.error) return saved
+      await syncVariants(remote.restaurantId, dish, exists)
+      return saved
     })
     return true
   },
