@@ -34,7 +34,7 @@ export async function hydrate(): Promise<boolean> {
         .eq('restaurant_id', ctx.restaurantId)
         .order('created_at', { ascending: false })
         .limit(1),
-      sb.from('menu_items').select('*').eq('restaurant_id', ctx.restaurantId).order('position').order('created_at'),
+      sb.from('menu_items').select('*, menu_variants(id, name, price_fcfa, position, available)').eq('restaurant_id', ctx.restaurantId).order('position').order('created_at'),
       sb.from('dining_tables').select('number, seats, status').eq('restaurant_id', ctx.restaurantId),
     ])
     if (r.error || !r.data) throw new Error(r.error?.message ?? 'Restaurant introuvable.')
@@ -77,6 +77,9 @@ export async function hydrate(): Promise<boolean> {
       category: d.category,
       image: publicUrl(d.image_path),
       available: !!d.available,
+      variants: ((d.menu_variants ?? []) as any[])
+        .sort((a, b) => a.position - b.position)
+        .map((v) => ({ id: v.id, name: v.name, price: v.price_fcfa, available: !!v.available })),
     }))
     applyRemoteMenu(dishes)
     applyRemoteTables(((t.data ?? []) as any[]).map((x) => ({ number: x.number, seats: x.seats, status: x.status })))

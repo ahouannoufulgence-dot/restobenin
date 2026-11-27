@@ -35,6 +35,10 @@ export const api = {
   updateDish: (id: string, row: Record<string, unknown>) => getSupabase().from('menu_items').update(row).eq('id', id),
   deleteDish: (id: string) => getSupabase().from('menu_items').delete().eq('id', id),
 
+  insertVariant: (row: Record<string, unknown>) => getSupabase().from('menu_variants').insert(row),
+  updateVariant: (id: string, row: Record<string, unknown>) => getSupabase().from('menu_variants').update(row).eq('id', id),
+  deleteVariant: (id: string) => getSupabase().from('menu_variants').delete().eq('id', id),
+
   insertStockItem: (row: Record<string, unknown>) => getSupabase().from('stock_items').insert(row),
   updateStockItem: (id: string, row: Record<string, unknown>) => getSupabase().from('stock_items').update(row).eq('id', id),
   deleteStockItem: (id: string) => getSupabase().from('stock_items').delete().eq('id', id),

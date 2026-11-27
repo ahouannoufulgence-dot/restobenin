@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { fcfa } from '@/lib/gerant-data'
 import { categories, type Category } from '@/lib/client-data'
 import { photoToDataUrl } from '@/lib/image-resize'
-import type { MenuDish } from '@/lib/menu-store'
+import type { MenuDish, MenuVariant } from '@/lib/menu-store'
 import { Panel, ScreenHeader, primaryAction } from './shared'
 
 const fieldClass =
@@ -15,9 +15,80 @@ const fieldClass =
 
 const dishCategories = categories.filter((c): c is { id: Category; label: string } => c.id !== 'tous')
 
-type Draft = { id: string | null; name: string; price: string; description: string; category: Category; image?: string }
+/** Une taille en cours de saisie : `id` vient de la base (absent pour une nouvelle taille). */
+type DraftVariant = { key: string; id?: string; name: string; price: string }
 
-const emptyDraft: Draft = { id: null, name: '', price: '', description: '', category: 'plats' }
+type Draft = {
+  id: string | null
+  name: string
+  price: string
+  description: string
+  category: Category
+  image?: string
+  variants: DraftVariant[]
+}
+
+const emptyDraft: Draft = { id: null, name: '', price: '', description: '', category: 'plats', variants: [] }
+
+/** Tailles d'un plat (petit, grand…) : chacune a son prix. Sans taille, le plat garde son prix de base. */
+function VariantsEditor({ draft, setDraft }: { draft: Draft; setDraft: (update: (d: Draft) => Draft) => void }) {
+  const update = (key: string, patch: Partial<DraftVariant>) =>
+    setDraft((d) => ({ ...d, variants: d.variants.map((v) => (v.key === key ? { ...v, ...patch } : v)) }))
+  const add = () =>
+    setDraft((d) => ({ ...d, variants: [...d.variants, { key: `new-${Date.now().toString(36)}${d.variants.length}`, name: '', price: '' }] }))
+  const remove = (key: string) => setDraft((d) => ({ ...d, variants: d.variants.filter((v) => v.key !== key) }))
+
+  return (
+    <fieldset className="rounded-xl border border-border p-3">
+      <legend className="px-1 text-sm font-medium">Tailles et prix</legend>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Pour un plat qui existe en plusieurs formats (petit, grand, 1 000 ou 1 500). Le client choisit la taille. Laissez vide si le plat n’a qu’un seul prix.
+      </p>
+      {draft.variants.length === 0 && (
+        <p className="mb-3 text-xs text-muted-foreground">Aucune taille : le plat se vend à son prix de base.</p>
+      )}
+      <ul className="grid gap-2">
+        {draft.variants.map((v, i) => (
+          <li key={v.key} className="grid grid-cols-[1fr_7rem_auto] items-center gap-2">
+            <label htmlFor={`variant-name-${v.key}`} className="sr-only">Nom de la taille {i + 1}</label>
+            <input
+              id={`variant-name-${v.key}`}
+              value={v.name}
+              onChange={(e) => update(v.key, { name: e.target.value })}
+              placeholder="Ex. Petit"
+              maxLength={40}
+              className={fieldClass}
+            />
+            <label htmlFor={`variant-price-${v.key}`} className="sr-only">Prix de la taille {v.name || i + 1} en FCFA</label>
+            <input
+              id={`variant-price-${v.key}`}
+              inputMode="numeric"
+              value={v.price}
+              onChange={(e) => update(v.key, { price: e.target.value.replace(/\D/g, '') })}
+              placeholder="1000"
+              className={fieldClass}
+            />
+            <button
+              type="button"
+              onClick={() => remove(v.key)}
+              aria-label={`Retirer la taille ${v.name || i + 1}`}
+              className="inline-flex size-10 items-center justify-center rounded-xl text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-destructive/30"
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        onClick={add}
+        className="mt-3 inline-flex h-10 items-center rounded-xl border border-border px-4 text-sm font-semibold hover:border-ember hover:text-ember focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+      >
+        + Ajouter une taille
+      </button>
+    </fieldset>
+  )
+}
 
 function DishForm({
   initial,
@@ -120,10 +191,12 @@ function DishForm({
             <input id="dish-name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Ex. Amiwo au poulet" className={fieldClass} />
           </div>
 
+          <VariantsEditor draft={draft} setDraft={setDraft} />
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="dish-price" className="mb-1 block text-sm font-medium">
-                Prix (FCFA)
+                {draft.variants.length > 0 ? 'Prix de base (si pas de taille)' : 'Prix (FCFA)'}
               </label>
               <input
                 id="dish-price"
@@ -223,7 +296,20 @@ export function MenuScreen({
   const visible = dishes.filter((d) => d.name.toLowerCase().includes(query.trim().toLowerCase()))
 
   function save(draft: Draft): string | null {
-    const value = Number(draft.price)
+    const filled = draft.variants.filter((v) => v.name.trim() || v.price.trim())
+    const variants: MenuVariant[] = []
+    const seen = new Set<string>()
+    for (const v of filled) {
+      const price = Number(v.price)
+      if (!v.name.trim()) return 'Donnez un nom à chaque taille (Petit, Grand…).'
+      if (!Number.isInteger(price) || price <= 0) return `Indiquez un prix valide pour la taille « ${v.name.trim()} ».`
+      const key = v.name.trim().toLowerCase()
+      if (seen.has(key)) return `La taille « ${v.name.trim()} » est en double.`
+      seen.add(key)
+      variants.push({ id: v.id ?? '', name: v.name.trim(), price, available: true })
+    }
+    // Avec des tailles, le prix de base devient celui de la première taille (et n'est plus demandé).
+    const value = variants.length > 0 ? variants[0].price : Number(draft.price)
     if (!draft.name.trim()) return 'Indiquez le nom du plat.'
     if (!Number.isInteger(value) || value <= 0) return 'Indiquez un prix valide en FCFA.'
     const existing = draft.id ? dishes.find((d) => d.id === draft.id) : undefined
@@ -235,6 +321,7 @@ export function MenuScreen({
       category: draft.category,
       image: draft.image,
       available: existing?.available ?? true,
+      variants: variants.map((v) => ({ ...v, id: v.id || `v-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` })),
     })
     if (!ok) return 'Enregistrement impossible : la mémoire du navigateur est pleine. Retirez une photo ou choisissez une image plus légère.'
     setForm(null)
@@ -259,7 +346,7 @@ export function MenuScreen({
             <Panel className="flex items-center gap-3 p-3 sm:p-3">
               <button
                 type="button"
-                onClick={() => setForm({ id: dish.id, name: dish.name, price: String(dish.price), description: dish.description, category: dish.category, image: dish.image })}
+                onClick={() => setForm({ id: dish.id, name: dish.name, price: String(dish.price), description: dish.description, category: dish.category, image: dish.image, variants: (dish.variants ?? []).map((v) => ({ key: v.id, id: v.id, name: v.name, price: String(v.price) })) })}
                 disabled={!canEdit}
                 aria-label={canEdit ? `Modifier ${dish.name}` : dish.name}
                 className="flex min-w-0 flex-1 items-center gap-4 rounded-xl text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 disabled:cursor-default"
