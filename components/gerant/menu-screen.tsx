@@ -16,7 +16,7 @@ const fieldClass =
 const dishCategories = categories.filter((c): c is { id: Category; label: string } => c.id !== 'tous')
 
 /** Une taille en cours de saisie : `id` vient de la base (absent pour une nouvelle taille). */
-type DraftVariant = { key: string; id?: string; name: string; price: string }
+type DraftVariant = { key: string; id?: string; name: string; price: string; image?: string }
 
 type Draft = {
   id: string | null
@@ -34,6 +34,20 @@ const emptyDraft: Draft = { id: null, name: '', price: '', description: '', cate
 function VariantsEditor({ draft, setDraft }: { draft: Draft; setDraft: (update: (d: Draft) => Draft) => void }) {
   const update = (key: string, patch: Partial<DraftVariant>) =>
     setDraft((d) => ({ ...d, variants: d.variants.map((v) => (v.key === key ? { ...v, ...patch } : v)) }))
+  const [busyKey, setBusyKey] = useState<string | null>(null)
+  async function pickPhoto(key: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBusyKey(key)
+    try {
+      update(key, { image: await photoToDataUrl(file) })
+    } catch {
+      /* photo refusée : la taille garde sa photo précédente */
+    } finally {
+      setBusyKey(null)
+    }
+  }
   const add = () =>
     setDraft((d) => ({ ...d, variants: [...d.variants, { key: `new-${Date.now().toString(36)}${d.variants.length}`, name: '', price: '' }] }))
   const remove = (key: string) => setDraft((d) => ({ ...d, variants: d.variants.filter((v) => v.key !== key) }))
@@ -68,6 +82,23 @@ function VariantsEditor({ draft, setDraft }: { draft: Draft; setDraft: (update: 
               placeholder="1000"
               className={fieldClass}
             />
+            <div className="col-span-3 flex items-center gap-3">
+              {v.image ? (
+                <img src={v.image} alt="" className="size-12 shrink-0 rounded-lg object-cover" />
+              ) : (
+                <span className="size-12 shrink-0 rounded-lg bg-sand" aria-hidden="true" />
+              )}
+              <label className="inline-flex h-9 cursor-pointer items-center rounded-lg border border-border px-3 text-xs font-semibold hover:border-ember hover:text-ember focus-within:ring-3 focus-within:ring-ember/30">
+                {busyKey === v.key ? 'Chargement…' : v.image ? 'Changer la photo' : 'Ajouter une photo'}
+                <input type="file" accept="image/*" className="sr-only" onChange={(e) => void pickPhoto(v.key, e)} disabled={busyKey === v.key} />
+              </label>
+              {v.image && (
+                <button type="button" onClick={() => update(v.key, { image: undefined })} className="text-xs font-semibold text-destructive hover:underline">
+                  Retirer
+                </button>
+              )}
+              <span className="text-xs text-muted-foreground">Facultative : sans photo, la taille reprend celle du plat.</span>
+            </div>
             <button
               type="button"
               onClick={() => remove(v.key)}
@@ -306,7 +337,7 @@ export function MenuScreen({
       const key = v.name.trim().toLowerCase()
       if (seen.has(key)) return `La taille « ${v.name.trim()} » est en double.`
       seen.add(key)
-      variants.push({ id: v.id ?? '', name: v.name.trim(), price, available: true })
+      variants.push({ id: v.id ?? '', name: v.name.trim(), price, available: true, image: v.image })
     }
     // Avec des tailles, le prix de base devient celui de la première taille (et n'est plus demandé).
     const value = variants.length > 0 ? variants[0].price : Number(draft.price)
@@ -346,7 +377,7 @@ export function MenuScreen({
             <Panel className="flex items-center gap-3 p-3 sm:p-3">
               <button
                 type="button"
-                onClick={() => setForm({ id: dish.id, name: dish.name, price: String(dish.price), description: dish.description, category: dish.category, image: dish.image, variants: (dish.variants ?? []).map((v) => ({ key: v.id, id: v.id, name: v.name, price: String(v.price) })) })}
+                onClick={() => setForm({ id: dish.id, name: dish.name, price: String(dish.price), description: dish.description, category: dish.category, image: dish.image, variants: (dish.variants ?? []).map((v) => ({ key: v.id, id: v.id, name: v.name, price: String(v.price), image: v.image })) })}
                 disabled={!canEdit}
                 aria-label={canEdit ? `Modifier ${dish.name}` : dish.name}
                 className="flex min-w-0 flex-1 items-center gap-4 rounded-xl text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 disabled:cursor-default"

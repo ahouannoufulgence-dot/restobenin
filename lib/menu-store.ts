@@ -14,7 +14,7 @@ import { background, getRemote, onRemoteReset } from './supabase/runtime'
  */
 
 /** Une taille d'un plat (petit, grand…) avec son prix. Un plat sans taille utilise son prix de base. */
-export type MenuVariant = { id: string; name: string; price: number; available: boolean }
+export type MenuVariant = { id: string; name: string; price: number; available: boolean; image?: string }
 
 export type MenuDish = {
   id: string
@@ -148,7 +148,14 @@ export function useClientDishes(): ClientDish[] {
  * Un plat sans taille n'a aucune ligne. La base refuse une taille qui ne correspond pas au plat (contrôle dans la base).
  */
 async function syncVariants(restaurantId: string, dish: MenuDish, existed: boolean) {
-  const wanted = dish.variants ?? []
+  // Photo choisie sur cet appareil : envoyée dans le stockage ; la base ne garde que son chemin.
+  const wanted = await Promise.all((dish.variants ?? []).map(async (v) => {
+    if (v.image?.startsWith('data:')) {
+      const path = await uploadDataUrl(restaurantId, 'variantes', v.id, v.image)
+      return { ...v, image: publicUrl(path), imagePath: path as string | null }
+    }
+    return { ...v, imagePath: v.image ? undefined : null }
+  }))
   if (!existed && wanted.length === 0) return
   const { data, error } = await getSupabase().from('menu_variants').select('id').eq('menu_item_id', dish.id)
   if (error) throw new Error(error.message)
@@ -162,7 +169,8 @@ async function syncVariants(restaurantId: string, dish: MenuDish, existed: boole
     }
   }
   for (const [position, v] of wanted.entries()) {
-    const row = { name: v.name, price_fcfa: v.price, position, available: v.available }
+    const row: Record<string, unknown> = { name: v.name, price_fcfa: v.price, position, available: v.available }
+    if (v.imagePath !== undefined) row.image_path = v.imagePath
     if (current.has(v.id)) {
       const updated = await api.updateVariant(v.id, row)
       if (updated.error) throw new Error(updated.error.message)
