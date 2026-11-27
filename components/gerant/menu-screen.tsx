@@ -352,7 +352,8 @@ export function MenuScreen({
       category: draft.category,
       image: draft.image,
       available: existing?.available ?? true,
-      variants: variants.map((v) => ({ ...v, id: v.id || `v-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` })),
+      // Identifiant unique au format UUID, exigé par la base (l'ancien format « v-… » était refusé).
+      variants: variants.map((v) => ({ ...v, id: v.id || crypto.randomUUID() })),
     })
     if (!ok) return 'Enregistrement impossible : la mémoire du navigateur est pleine. Retirez une photo ou choisissez une image plus légère.'
     setForm(null)
