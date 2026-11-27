@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronRight, ShoppingBag, Trash2, Wallet } from 'lucide-react'
-import { SERVICE_FEE, type ClientDish } from '@/lib/client-data'
+import { SERVICE_FEE, type ClientDish, linePrice, lineName, parseCartKey } from '@/lib/client-data'
 import { fcfa } from '@/lib/gerant-data'
 import { DishImage, QtyStepper, emberAction, roundButton } from './ui'
 
@@ -15,11 +15,12 @@ type CartProps = {
 }
 
 export function CartSummary({ error, serviceFee = SERVICE_FEE, dishes, cart, onSetQty, onOrder, onBrowse }: CartProps) {
-  const lines = Object.entries(cart).flatMap(([id, qty]) => {
-    const dish = dishes.find((d) => d.id === id)
-    return dish ? [{ dish, qty }] : []
+  const lines = Object.entries(cart).flatMap(([key, qty]) => {
+    const { dishId, variantId } = parseCartKey(key)
+    const dish = dishes.find((d) => d.id === dishId)
+    return dish ? [{ key, dish, variantId, qty, unit: linePrice(dish, variantId), label: lineName(dish, variantId) }] : []
   })
-  const subtotal = lines.reduce((sum, l) => sum + l.dish.price * l.qty, 0)
+  const subtotal = lines.reduce((sum, l) => sum + l.unit * l.qty, 0)
 
   if (lines.length === 0) {
     return (
@@ -39,19 +40,19 @@ export function CartSummary({ error, serviceFee = SERVICE_FEE, dishes, cart, onS
   return (
     <>
       <ul className="flex flex-col gap-3">
-        {lines.map(({ dish, qty }) => (
-          <li key={dish.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+        {lines.map(({ key, dish, qty, unit, label }) => (
+          <li key={key} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
             <DishImage dish={dish} sizes="64px" className="size-16 shrink-0 rounded-xl" />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold">{dish.name}</p>
-              <p className="text-sm font-semibold tabular-nums text-ember-deep">{fcfa(dish.price * qty)}</p>
+              <p className="truncate font-semibold">{label}</p>
+              <p className="text-sm font-semibold tabular-nums text-ember-deep">{fcfa(unit * qty)}</p>
               <div className="mt-1.5">
-                <QtyStepper qty={qty} onChange={(n) => onSetQty(dish.id, n)} name={dish.name} min={1} size="sm" />
+                <QtyStepper qty={qty} onChange={(n) => onSetQty(key, n)} name={label} min={1} size="sm" />
               </div>
             </div>
             <button
               type="button"
-              onClick={() => onSetQty(dish.id, 0)}
+              onClick={() => onSetQty(key, 0)}
               aria-label={`Retirer ${dish.name} du panier`}
               className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-destructive/30"
             >

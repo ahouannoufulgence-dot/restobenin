@@ -149,14 +149,15 @@ export function useRemoteClient(slug: string | undefined, table: string) {
   }, [slug, token])
 
   const place = useCallback(
-    async (lines: OrderLine[]): Promise<PlaceResult> => {
+    async (lines: (OrderLine & { variant?: string })[]): Promise<PlaceResult> => {
       const number = Number.parseInt(table, 10)
       if (!slug || !Number.isInteger(number)) return { ok: false, error: 'Table invalide : scannez de nouveau le QR code de votre table.' }
       try {
         const { data, error } = await getSupabase().rpc('place_client_order', {
           p_slug: slug,
           p_table: number,
-          p_lines: lines.map((l) => ({ id: l.id, qty: l.qty })),
+          // La base recalcule les prix elle-même (et la taille choisie) : les prix envoyés ici ne servent qu'à l'affichage.
+          p_lines: lines.map((l) => (l.variant ? { id: l.id, qty: l.qty, variant: l.variant } : { id: l.id, qty: l.qty })),
         })
         if (error || !data) return { ok: false, error: friendlyError(error?.message) }
         const res = data as { number: number; total: number; guest_token: string }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ChevronRight, Heart, ShoppingBag, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ClientDish } from '@/lib/client-data'
+import { type ClientDish, cartKey, linePrice } from '@/lib/client-data'
 import { fcfa } from '@/lib/gerant-data'
 import { DishImage, QtyStepper, Rating, greenAction, roundButton } from './ui'
 
@@ -12,6 +12,7 @@ export function DishScreen({
   initialQty,
   onBack,
   onAdd,
+  initialVariant,
 }: {
   dish: ClientDish
   /** Tous les plats affichés dans le menu : la fiche permet de passer de l'un à l'autre. */
@@ -19,9 +20,16 @@ export function DishScreen({
   onSelect: (id: string) => void
   initialQty: number
   onBack: () => void
-  onAdd: (qty: number) => void
+  /** Ajoute le plat (et la taille choisie, s'il y en a une) au panier. */
+  onAdd: (qty: number, variantId?: string) => void
+  /** Taille déjà choisie dans le panier pour ce plat. */
+  initialVariant?: string
 }) {
   const [qty, setQty] = useState(Math.max(1, initialQty))
+  const variants = (dish.variants ?? []).filter((v) => v.available)
+  const [variantId, setVariantId] = useState<string | undefined>(initialVariant ?? variants[0]?.id)
+  const unitPrice = linePrice(dish, variantId)
+  const needsVariant = variants.length > 0 && !variantId
   const [favorite, setFavorite] = useState(false)
   const rail = useRef<HTMLDivElement>(null)
   const index = Math.max(0, dishes.findIndex((d) => d.id === dish.id))
@@ -73,7 +81,7 @@ export function DishScreen({
         <p className="mt-2 text-pretty leading-relaxed text-muted-foreground">{dish.description}</p>
 
         <div className="mt-4 flex items-center justify-between">
-          <p className="font-serif text-3xl font-semibold tabular-nums text-ember-deep">{fcfa(dish.price)}</p>
+          <p className="font-serif text-3xl font-semibold tabular-nums text-ember-deep">{fcfa(unitPrice)}</p>
           <QtyStepper qty={qty} onChange={setQty} name={dish.name} min={1} />
         </div>
 
@@ -106,11 +114,39 @@ export function DishScreen({
           )}
         </section>
 
+        {variants.length > 0 && (
+          <fieldset className="mt-6">
+            <legend className="mb-2 text-sm font-semibold">Choisissez la taille</legend>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {variants.map((v) => {
+                const selected = v.id === variantId
+                return (
+                  <label
+                    key={v.id}
+                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-xl border px-3 py-3 text-sm transition-colors focus-within:ring-3 focus-within:ring-ember/30 ${
+                      selected ? 'border-ember bg-[#fff3e6] ring-2 ring-ember/30' : 'border-border bg-card hover:border-ember/50'
+                    }`}
+                  >
+                    <input type="radio" name="variant" value={v.id} checked={selected} onChange={() => setVariantId(v.id)} className="sr-only" />
+                    <span className="font-semibold">{v.name}</span>
+                    <span className="tabular-nums text-ember-deep">{fcfa(v.price)}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </fieldset>
+        )}
+
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:mt-8 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
-          <button type="button" onClick={() => onAdd(qty)} disabled={!dish.available} className={`${greenAction} md:mx-auto md:max-w-md lg:mx-0`}>
+          <button
+            type="button"
+            onClick={() => onAdd(qty, variantId)}
+            disabled={!dish.available || needsVariant}
+            className={`${greenAction} md:mx-auto md:max-w-md lg:mx-0`}
+          >
             <ShoppingBag className="size-4" aria-hidden="true" />
-            {dish.available ? `Ajouter au panier · ${fcfa(dish.price * qty)}` : 'Indisponible aujourd’hui'}
-            {dish.available && <ChevronRight className="size-4" aria-hidden="true" />}
+            {!dish.available ? 'Indisponible aujourd’hui' : needsVariant ? 'Choisissez une taille' : `Ajouter au panier · ${fcfa(unitPrice * qty)}`}
+            {dish.available && !needsVariant && <ChevronRight className="size-4" aria-hidden="true" />}
           </button>
         </div>
       </div>

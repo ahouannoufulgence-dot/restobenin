@@ -10,6 +10,7 @@ import { BottomNav, TopNav, type ClientTab } from './bottom-nav'
 import { CartPanel, CartScreen } from './cart-screen'
 import { ConfirmedScreen } from './confirmed-screen'
 import { DishScreen } from './dish-screen'
+import { cartKey, linePrice, lineName, parseCartKey } from '@/lib/client-data'
 import { MenuScreen } from './menu-screen'
 import { ReviewSheet } from './review-sheet'
 import { TrackingScreen } from './tracking-screen'
@@ -37,7 +38,7 @@ export function ClientApp({ table, slug, needsQr = false }: { table: string; slu
   const [reviewOpen, setReviewOpen] = useState(false)
 
   // Si le gérant retire un plat ou le rend indisponible, il disparaît aussi du panier.
-  const cart = useMemo(() => Object.fromEntries(Object.entries(rawCart).filter(([id]) => dishes.some((d) => d.id === id && d.available))), [rawCart, dishes])
+  const cart = useMemo(() => Object.fromEntries(Object.entries(rawCart).filter(([key]) => { const { dishId, variantId } = parseCartKey(key); const d = dishes.find((x) => x.id === dishId); return !!d && d.available && (!variantId || !d.variants || d.variants.some((v) => v.id === variantId && v.available)) })), [rawCart, dishes])
 
   // Le suivi vient des vrais statuts de la commande, mis à jour par la cuisine et la caisse.
   const stored = orderId ? orders.find((o) => o.id === orderId) : undefined
@@ -77,24 +78,31 @@ export function ClientApp({ table, slug, needsQr = false }: { table: string; slu
     window.scrollTo({ top: 0 })
   }
 
-  function setQty(id: string, qty: number) {
+  /** Taille déjà choisie dans le panier pour ce plat (sinon, aucune : la fiche prendra la première taille disponible). */
+  const initialVariantOf = (dishId: string) => {
+    const key = Object.keys(cart).find((k) => parseCartKey(k).dishId === dishId)
+    return key ? parseCartKey(key).variantId : undefined
+  }
+
+  function setQty(key: string, qty: number) {
     setCart((c) => {
       const next = { ...c }
-      if (qty <= 0) delete next[id]
-      else next[id] = qty
+      if (qty <= 0) delete next[key]
+      else next[key] = qty
       return next
     })
   }
 
   async function placeOrder() {
-    const lines = Object.entries(cart).flatMap(([id, qty]) => {
-      const dish = dishes.find((d) => d.id === id)
-      return dish ? [{ id, name: dish.name, qty, price: dish.price }] : []
+    const lines = Object.entries(cart).flatMap(([key, qty]) => {
+      const { dishId, variantId } = parseCartKey(key)
+      const dish = dishes.find((d) => d.id === dishId)
+      return dish ? [{ id: dishId, variant: variantId, name: lineName(dish, variantId), qty, price: linePrice(dish, variantId) }] : []
     })
     if (lines.length === 0 || placing) return
     if (slug) {
       setPlacing(true)
-      const result = await remote.place(lines)
+      const result = await remote.place(lines.map(({ id, variant, qty }) => ({ id, variant, qty, name: '', price: 0 })))
       setPlacing(false)
       if (!result.ok) return setOrderError(result.error)
       setOrderError('')
@@ -181,10 +189,11 @@ export function ClientApp({ table, slug, needsQr = false }: { table: string; slu
             dish={dish}
             dishes={dishes}
             onSelect={(id) => setSelectedId(id)}
-            initialQty={cart[dish.id] ?? 1}
+            initialQty={cart[cartKey(dish.id, initialVariantOf(dish.id))] ?? 1}
+            initialVariant={initialVariantOf(dish.id)}
             onBack={() => go('menu')}
-            onAdd={(qty) => {
-              setQty(dish.id, qty)
+            onAdd={(qty, variantId) => {
+              setQty(cartKey(dish.id, variantId), qty)
               go('menu')
             }}
           />
