@@ -3,7 +3,7 @@ export type Category = 'plats' | 'boissons' | 'desserts'
 export type Review = { author: string; date: string; rating: number; text: string }
 
 /** Une taille du plat, avec son prix (le client en choisit une). */
-export type ClientVariant = { id: string; name: string; price: number; available: boolean }
+export type ClientVariant = { id: string; name: string; price: number; available: boolean; image?: string }
 
 export type ClientDish = {
   id: string

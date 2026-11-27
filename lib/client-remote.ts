@@ -54,6 +54,14 @@ function mapMenu(raw: any): MenuState {
       rating: 0,
       reviewCount: 0,
       reviews: [],
+      // Tailles / variétés : chacune avec sa photo (la photo du plat sert de repli).
+      variants: ((Array.isArray(m.variants) ? m.variants : []) as any[]).map((v) => ({
+        id: v.id,
+        name: v.name,
+        price: v.price,
+        available: !!v.available,
+        image: publicUrl(v.image_path),
+      })),
     })),
   }
 }

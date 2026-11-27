@@ -27,7 +27,11 @@ export function DishScreen({
 }) {
   const [qty, setQty] = useState(Math.max(1, initialQty))
   const variants = (dish.variants ?? []).filter((v) => v.available)
-  const [variantId, setVariantId] = useState<string | undefined>(initialVariant ?? variants[0]?.id)
+  // La variante la plus chère est mise en avant par défaut ; les autres sont proposées en dessous.
+  const featured = variants.reduce<(typeof variants)[number] | undefined>((best, v) => (!best || v.price > best.price ? v : best), undefined)
+  const [variantId, setVariantId] = useState<string | undefined>(initialVariant ?? featured?.id)
+  const shown = variants.find((v) => v.id === variantId)
+  const hero = shown?.image ? { ...dish, image: shown.image } : dish
   const unitPrice = linePrice(dish, variantId)
   const needsVariant = variants.length > 0 && !variantId
   const [favorite, setFavorite] = useState(false)
@@ -55,11 +59,14 @@ export function DishScreen({
             if (dishes[i] && dishes[i].id !== dish.id) onSelect(dishes[i].id)
           }}
         >
-          {dishes.map((d) => (
-            <div key={d.id} role="listitem" className="w-full shrink-0 snap-center">
-              <DishImage dish={d} sizes="(min-width: 448px) 448px, 100vw" className="h-72 w-full md:h-96 lg:h-[32rem]" />
-            </div>
-          ))}
+          {dishes.map((d) => {
+            const picture = d.id === dish.id ? hero : d
+            return (
+              <div key={d.id} role="listitem" className="w-full shrink-0 snap-center">
+                <DishImage dish={picture} sizes="(min-width: 448px) 448px, 100vw" className="h-72 w-full md:h-96 lg:h-[32rem]" />
+              </div>
+            )
+          })}
         </div>
         <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5" aria-hidden="true">
           {dishes.map((d, i) => (
@@ -116,20 +123,23 @@ export function DishScreen({
 
         {variants.length > 0 && (
           <fieldset className="mt-6">
-            <legend className="mb-2 text-sm font-semibold">Choisissez la taille</legend>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <legend className="mb-2 text-sm font-semibold">Choisissez la variante</legend>
+            <div role="radiogroup" aria-label="Variantes du plat" className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:px-0">
               {variants.map((v) => {
                 const selected = v.id === variantId
                 return (
                   <label
                     key={v.id}
-                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-xl border px-3 py-3 text-sm transition-colors focus-within:ring-3 focus-within:ring-ember/30 ${
+                    className={`flex w-36 shrink-0 snap-start cursor-pointer flex-col overflow-hidden rounded-xl border text-sm transition-colors focus-within:ring-3 focus-within:ring-ember/30 ${
                       selected ? 'border-ember bg-[#fff3e6] ring-2 ring-ember/30' : 'border-border bg-card hover:border-ember/50'
                     }`}
                   >
                     <input type="radio" name="variant" value={v.id} checked={selected} onChange={() => setVariantId(v.id)} className="sr-only" />
-                    <span className="font-semibold">{v.name}</span>
-                    <span className="tabular-nums text-ember-deep">{fcfa(v.price)}</span>
+                    <DishImage dish={{ ...dish, image: v.image ?? dish.image }} sizes="144px" className="aspect-[4/3] w-full rounded-none" />
+                    <span className="flex items-center justify-between gap-2 px-3 py-2">
+                      <span className="truncate font-semibold">{v.name}</span>
+                      <span className="shrink-0 tabular-nums text-ember-deep">{fcfa(v.price)}</span>
+                    </span>
                   </label>
                 )
               })}
