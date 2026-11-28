@@ -88,7 +88,9 @@ export function DishScreen({
         <p className="mt-2 text-pretty leading-relaxed text-muted-foreground">{dish.description}</p>
 
         <div className="mt-4 flex items-center justify-between">
-          <p className="font-serif text-3xl font-semibold tabular-nums text-ember-deep">{fcfa(unitPrice)}</p>
+          <p className="font-serif text-3xl font-semibold tabular-nums text-ember-deep">
+            {variants.length > 0 && !variantId ? `à partir de ${fcfa(Math.min(...variants.map((v) => v.price)))}` : fcfa(unitPrice)}
+          </p>
           <QtyStepper qty={qty} onChange={setQty} name={dish.name} min={1} />
         </div>
 
@@ -130,14 +132,14 @@ export function DishScreen({
                 return (
                   <label
                     key={v.id}
-                    className={`flex w-36 shrink-0 snap-start cursor-pointer flex-col overflow-hidden rounded-xl border text-sm transition-colors focus-within:ring-3 focus-within:ring-ember/30 ${
+                    className={`flex w-44 shrink-0 snap-start cursor-pointer flex-col overflow-hidden rounded-xl border text-sm transition-colors focus-within:ring-3 focus-within:ring-ember/30 ${
                       selected ? 'border-ember bg-[#fff3e6] ring-2 ring-ember/30' : 'border-border bg-card hover:border-ember/50'
                     }`}
                   >
                     <input type="radio" name="variant" value={v.id} checked={selected} onChange={() => setVariantId(v.id)} className="sr-only" />
                     <DishImage dish={{ ...dish, image: v.image ?? dish.image }} sizes="144px" className="aspect-[4/3] w-full rounded-none" />
                     <span className="flex items-center justify-between gap-2 px-3 py-2">
-                      <span className="truncate font-semibold">{v.name}</span>
+                      <span className="min-w-0 break-words font-semibold leading-tight">{v.name}</span>
                       <span className="shrink-0 tabular-nums text-ember-deep">{fcfa(v.price)}</span>
                     </span>
                   </label>
