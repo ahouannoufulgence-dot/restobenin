@@ -35,44 +35,12 @@ export function DishScreen({
   const unitPrice = linePrice(dish, variantId)
   const needsVariant = variants.length > 0 && !variantId
   const [favorite, setFavorite] = useState(false)
-  const rail = useRef<HTMLDivElement>(null)
-  const index = Math.max(0, dishes.findIndex((d) => d.id === dish.id))
-
-  // Quand on change de plat, la rangée revient sur la carte affichée (et la quantité repart de celle du panier).
-  useEffect(() => {
-    const el = rail.current?.children[index] as HTMLElement | undefined
-    el?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' as ScrollBehavior })
-  }, [index])
 
   return (
     <div className="pb-28 lg:mx-auto lg:grid lg:max-w-5xl lg:grid-cols-2 lg:items-start lg:gap-12 lg:px-0 lg:pb-12 lg:pt-10">
       <div className="relative lg:sticky lg:top-24 lg:overflow-hidden lg:rounded-3xl">
-        {/* Rangée des plats : on glisse de gauche à droite pour passer au plat suivant. */}
-        <div
-          ref={rail}
-          role="list"
-          aria-label="Parcourir les plats"
-          className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          onScroll={(e) => {
-            const el = e.currentTarget
-            const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth))
-            if (dishes[i] && dishes[i].id !== dish.id) onSelect(dishes[i].id)
-          }}
-        >
-          {dishes.map((d) => {
-            const picture = d.id === dish.id ? hero : d
-            return (
-              <div key={d.id} role="listitem" className="w-full shrink-0 snap-center">
-                <DishImage dish={picture} sizes="(min-width: 448px) 448px, 100vw" className="h-72 w-full md:h-96 lg:h-[32rem]" />
-              </div>
-            )
-          })}
-        </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5" aria-hidden="true">
-          {dishes.map((d, i) => (
-            <span key={d.id} className={cn('h-1.5 rounded-full bg-white/80 transition-all', i === index ? 'w-5' : 'w-1.5 opacity-60')} />
-          ))}
-        </div>
+        {/* La photo du plat ouvert (ou de la variante choisie). Une seule image : pas de rangée de plats, qui affichait un autre plat. */}
+        <DishImage dish={hero} sizes="(min-width: 448px) 448px, 100vw" className="h-72 w-full md:h-96 lg:h-[32rem]" />
         <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
           <button type="button" onClick={onBack} className={roundButton} aria-label="Retour au menu">
             <ArrowLeft className="size-5" aria-hidden="true" />
@@ -122,8 +90,8 @@ export function DishScreen({
         </section>
 
         {variants.length > 0 && (
-          <fieldset className="mt-6">
-            <legend className="mb-2 text-sm font-semibold">Choisissez la variante</legend>
+          <fieldset className="mt-6 pb-4">
+            <legend className="mb-2 text-sm font-semibold">{variants.length > 1 ? 'Choisissez la variante' : 'Variante'}</legend>
             <div role="radiogroup" aria-label="Variantes du plat" className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:px-0">
               {variants.map((v) => {
                 const selected = v.id === variantId
