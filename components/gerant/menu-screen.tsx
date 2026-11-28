@@ -226,30 +226,19 @@ function DishForm({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              {draft.variants.some((v) => v.name.trim() || v.price.trim()) ? (
-                <>
-                  <p className="mb-1 block text-sm font-medium">Prix du plat</p>
-                  <p className="flex h-11 items-center rounded-xl border border-border bg-sand/50 px-3 text-sm tabular-nums">
-                    {(() => {
-                      const prices = draft.variants.map((v) => Number(v.price)).filter((n) => Number.isInteger(n) && n > 0)
-                      if (prices.length === 0) return 'Indiquez le prix des tailles'
-                      return `à partir de ${fcfa(Math.min(...prices))}`
-                    })()}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">Calculé à partir des tailles : le plus bas prix.</p>
-                </>
-              ) : (
-                <>
-                  <label htmlFor="dish-price" className="mb-1 block text-sm font-medium">Prix (FCFA)</label>
-                  <input
-                    id="dish-price"
-                    inputMode="numeric"
-                    value={draft.price}
-                    onChange={(e) => setDraft({ ...draft, price: e.target.value.replace(/\D/g, '') })}
-                    placeholder="3000"
-                    className={fieldClass}
-                  />
-                </>
+              <label htmlFor="dish-price" className="mb-1 block text-sm font-medium">
+                {draft.variants.length > 0 ? 'Prix du plat principal (FCFA)' : 'Prix (FCFA)'}
+              </label>
+              <input
+                id="dish-price"
+                inputMode="numeric"
+                value={draft.price}
+                onChange={(e) => setDraft({ ...draft, price: e.target.value.replace(/\D/g, '') })}
+                placeholder="3000"
+                className={fieldClass}
+              />
+              {draft.variants.length > 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">Chaque taille garde son propre prix ci-dessus.</p>
               )}
             </div>
             <div>
@@ -354,8 +343,8 @@ export function MenuScreen({
       variants.push({ id: v.id ?? '', name: v.name.trim(), price, available: true, image: v.image })
     }
     // Avec des tailles, le prix de base devient celui de la première taille (et n'est plus demandé).
-    // Avec des tailles, le prix du plat est le plus bas des tailles (c'est celui affiché « à partir de »).
-    const value = variants.length > 0 ? Math.min(...variants.map((v) => v.price)) : Number(draft.price)
+    // Le plat principal garde son prix saisi ; les tailles gardent les leurs.
+    const value = Number(draft.price)
     if (!draft.name.trim()) return 'Indiquez le nom du plat.'
     if (!Number.isInteger(value) || value <= 0) return 'Indiquez un prix valide en FCFA.'
     const existing = draft.id ? dishes.find((d) => d.id === draft.id) : undefined

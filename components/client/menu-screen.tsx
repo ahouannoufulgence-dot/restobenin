@@ -89,11 +89,7 @@ export function MenuScreen({
                 <span className="min-w-0 sm:p-4 sm:pb-2">
                   <span className="block truncate font-semibold sm:text-lg">{dish.name}</span>
                   <span className={cn('mt-0.5 block font-semibold tabular-nums', dish.available ? 'text-ember-deep' : 'text-muted-foreground')}>
-                    {(() => {
-                      const available = (dish.variants ?? []).filter((v) => v.available)
-                      if (available.length > 1) return `à partir de ${fcfa(Math.min(...available.map((v) => v.price)))}`
-                      return fcfa(available[0]?.price ?? dish.price)
-                    })()}
+                    {fcfa(dish.price)}
                   </span>
                   <span className="mt-1 block">
                     {dish.available ? (

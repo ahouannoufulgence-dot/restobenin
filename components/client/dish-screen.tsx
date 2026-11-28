@@ -32,8 +32,8 @@ export function DishScreen({
   const [variantId, setVariantId] = useState<string | undefined>(initialVariant)
   const shown = variants.find((v) => v.id === variantId)
   const hero = shown?.image ? { ...dish, image: shown.image } : dish
+  // Le plat principal se commande à son prix ; une variante, si elle est choisie, remplace ce prix.
   const unitPrice = variantId ? linePrice(dish, variantId) : dish.price
-  const needsVariant = variants.length > 0 && !variantId
   const [favorite, setFavorite] = useState(false)
 
   // Défilement entre les plats : la rangée contient tous les plats du menu, et on se place sur le plat ouvert.
@@ -89,7 +89,7 @@ export function DishScreen({
 
         <div className="mt-4 flex items-center justify-between">
           <p className="font-serif text-3xl font-semibold tabular-nums text-ember-deep">
-            {variants.length > 0 && !variantId ? `à partir de ${fcfa(Math.min(...variants.map((v) => v.price)))}` : fcfa(unitPrice)}
+            {fcfa(unitPrice)}
           </p>
           <QtyStepper qty={qty} onChange={setQty} name={dish.name} min={1} />
         </div>
@@ -153,12 +153,12 @@ export function DishScreen({
           <button
             type="button"
             onClick={() => onAdd(qty, variantId)}
-            disabled={!dish.available || needsVariant}
+            disabled={!dish.available}
             className={`${greenAction} md:mx-auto md:max-w-md lg:mx-0`}
           >
             <ShoppingBag className="size-4" aria-hidden="true" />
-            {!dish.available ? 'Indisponible aujourd’hui' : needsVariant ? 'Choisissez une variante' : `Ajouter au panier · ${fcfa(unitPrice * qty)}`}
-            {dish.available && !needsVariant && <ChevronRight className="size-4" aria-hidden="true" />}
+            {!dish.available ? 'Indisponible aujourd’hui' : `Ajouter au panier · ${fcfa(unitPrice * qty)}`}
+            {dish.available && <ChevronRight className="size-4" aria-hidden="true" />}
           </button>
         </div>
       </div>
