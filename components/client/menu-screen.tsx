@@ -67,32 +67,27 @@ export function MenuScreen({
         </div>
       </header>
 
-      {/* Plats en rangée : on fait glisser du doigt de gauche à droite (ou la molette sur ordinateur). */}
-      <ul
-        aria-label="Plats"
-        tabIndex={0}
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-4 py-4 scroll-px-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 lg:px-0 lg:scroll-px-0 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
-      >
+      <ul className="flex flex-col gap-3 px-4 py-4 sm:grid sm:grid-cols-2 sm:gap-4 lg:px-0">
         {dishes.map((dish) => {
           // Dans la liste, le compteur d'un plat additionne toutes ses tailles.
           const qty = Object.entries(cart).reduce((sum, [key, q]) => (key.split('|')[0] === dish.id ? sum + q : sum), 0)
           return (
             <li
               key={dish.id}
-              className="flex w-[78vw] max-w-72 shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)] sm:w-64"
+              className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-[0_10px_30px_-18px_rgba(74,36,14,0.35)] sm:flex-col sm:items-stretch sm:gap-0 sm:overflow-hidden sm:p-0"
             >
               <button
                 type="button"
                 onClick={() => onOpen(dish.id)}
-                className="flex min-w-0 flex-1 flex-col items-stretch rounded-t-2xl text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30"
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ember/30 sm:flex-col sm:items-stretch sm:gap-0 sm:rounded-none"
               >
                 <DishImage
                   dish={dish}
-                  sizes="(min-width: 640px) 256px, 78vw"
-                  className={cn('aspect-[4/3] w-full rounded-none', !dish.available && 'grayscale')}
+                  sizes="(min-width: 640px) 320px, 80px"
+                  className={cn('size-20 shrink-0 rounded-xl sm:aspect-[4/3] sm:size-auto sm:w-full sm:rounded-none', !dish.available && 'grayscale')}
                 />
-                <span className="min-w-0 p-4 pb-2">
-                  <span className="block truncate font-semibold text-lg">{dish.name}</span>
+                <span className="min-w-0 sm:p-4 sm:pb-2">
+                  <span className="block truncate font-semibold sm:text-lg">{dish.name}</span>
                   <span className={cn('mt-0.5 block font-semibold tabular-nums', dish.available ? 'text-ember-deep' : 'text-muted-foreground')}>
                     {(() => {
                       const available = (dish.variants ?? []).filter((v) => v.available)
@@ -109,7 +104,7 @@ export function MenuScreen({
               </button>
 
               {dish.available && (
-                <div className="flex justify-end px-4 pb-4">
+                <div className="sm:flex sm:justify-end sm:px-4 sm:pb-4">
                   {qty > 0 ? (
                     <QtyStepper qty={qty} onChange={(n) => onSetQty(dish.id, n)} name={dish.name} size="sm" />
                   ) : (
