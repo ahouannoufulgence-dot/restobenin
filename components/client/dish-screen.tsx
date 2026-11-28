@@ -27,12 +27,12 @@ export function DishScreen({
 }) {
   const [qty, setQty] = useState(Math.max(1, initialQty))
   const variants = (dish.variants ?? []).filter((v) => v.available)
-  // La variante la plus chère est mise en avant par défaut ; les autres sont proposées en dessous.
-  const featured = variants.reduce<(typeof variants)[number] | undefined>((best, v) => (!best || v.price > best.price ? v : best), undefined)
-  const [variantId, setVariantId] = useState<string | undefined>(initialVariant ?? featured?.id)
+  // Le plat principal est affiché en premier (sa photo, son prix). Aucune variante n'est choisie d'office :
+  // seul un choix du client (ou une variante déjà au panier) la met en avant.
+  const [variantId, setVariantId] = useState<string | undefined>(initialVariant)
   const shown = variants.find((v) => v.id === variantId)
   const hero = shown?.image ? { ...dish, image: shown.image } : dish
-  const unitPrice = linePrice(dish, variantId)
+  const unitPrice = variantId ? linePrice(dish, variantId) : dish.price
   const needsVariant = variants.length > 0 && !variantId
   const [favorite, setFavorite] = useState(false)
 
@@ -123,7 +123,7 @@ export function DishScreen({
 
         {variants.length > 0 && (
           <fieldset className="mt-6 pb-4">
-            <legend className="mb-2 text-sm font-semibold">{variants.length > 1 ? 'Choisissez la variante' : 'Variante'}</legend>
+            <legend className="mb-2 text-sm font-semibold">Choisissez la variante</legend>
             <div role="radiogroup" aria-label="Variantes du plat" className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:px-0">
               {variants.map((v) => {
                 const selected = v.id === variantId
@@ -155,7 +155,7 @@ export function DishScreen({
             className={`${greenAction} md:mx-auto md:max-w-md lg:mx-0`}
           >
             <ShoppingBag className="size-4" aria-hidden="true" />
-            {!dish.available ? 'Indisponible aujourd’hui' : needsVariant ? 'Choisissez une taille' : `Ajouter au panier · ${fcfa(unitPrice * qty)}`}
+            {!dish.available ? 'Indisponible aujourd’hui' : needsVariant ? 'Choisissez une variante' : `Ajouter au panier · ${fcfa(unitPrice * qty)}`}
             {dish.available && !needsVariant && <ChevronRight className="size-4" aria-hidden="true" />}
           </button>
         </div>
