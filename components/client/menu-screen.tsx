@@ -94,7 +94,11 @@ export function MenuScreen({
                 <span className="min-w-0 p-4 pb-2">
                   <span className="block truncate font-semibold text-lg">{dish.name}</span>
                   <span className={cn('mt-0.5 block font-semibold tabular-nums', dish.available ? 'text-ember-deep' : 'text-muted-foreground')}>
-                    {dish.variants && dish.variants.length > 0 ? `à partir de ${fcfa(Math.min(...dish.variants.filter((v) => v.available).map((v) => v.price)))}` : fcfa(dish.price)}
+                    {(() => {
+                      const available = (dish.variants ?? []).filter((v) => v.available)
+                      if (available.length > 1) return `à partir de ${fcfa(Math.min(...available.map((v) => v.price)))}`
+                      return fcfa(available[0]?.price ?? dish.price)
+                    })()}
                   </span>
                   <span className="mt-1 block">
                     {dish.available ? (
